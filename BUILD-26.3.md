@@ -33,12 +33,15 @@ fakeplayer-263/
 ├── fakeplayer-v26_3/        # 26.3 的 NMS 实现（由 v1_21_6 移植）
 ├── fakeplayer-dist/         # shade 打包
 └── lib/
-    ├── paper-26.3-compile.jar   # 编译用：Paper 26.3 服务端 + 全部依赖
-    ├── OpenInv.jar              # 编译用（可选插件集成）
-    └── PlaceholderAPI-2.11.6.jar
+    └── paper-26.3-compile.jar   # 编译用：Paper 26.3 服务端 + 全部依赖（需自行生成）
 ```
 
 移除了 `fakeplayer-v1_20_x` ~ `fakeplayer-v1_21_10` 共 16 个模块：它们各自需要 BuildTools 生成的 remapped-mojang jar，且对 26.3 无意义。
+
+除 `lib/paper-26.3-compile.jar` 外 **不需要任何本地 jar**：
+
+- PlaceholderAPI 通过 Maven 仓库 `repo.extendedclip.com` 解析（`me.clip:placeholderapi:2.11.6`）；
+- OpenInv 只发布在 GitHub Releases、没有 Maven 坐标，因此改为反射调用 `IOpenInv`，不再需要 `lib/OpenInv.jar`。
 
 ---
 
@@ -165,6 +168,8 @@ Paper 26.x 用 Adventure 5，删掉了 devtools 依赖的两个类。没有改 d
 - `plugin.yml`：`api-version: '1.20'` → `'26.3'`
 - 根 `pom.xml`：`revision` 0.4.0、`paper.version`、`lombok` 1.18.48（支持 JDK 25）、`authlib` 10.0.77
 - `fakeplayer-dist`：只 shade core / api / v26_3，去掉拷贝到 `server-1.20.x` 的 antrun 配置
+- 去掉本地 jar 依赖：PlaceholderAPI 改为 Maven 依赖 `me.clip:placeholderapi:2.11.6`（provided），
+  `OpenInvInvseeManagerImpl` 改为反射调用 OpenInv，`lib/` 下不再需要任何第三方 jar
 
 ### 5.6 新增：假人驻留（重启保留）
 

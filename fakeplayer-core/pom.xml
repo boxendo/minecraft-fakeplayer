@@ -77,20 +77,12 @@
             <scope>provided</scope>
         </dependency>
 
+        <!-- OpenInv 只发布在 GitHub Releases, 没有 Maven 坐标; 运行时通过反射调用,
+             这样 clone 下来不需要自备 lib/OpenInv.jar 也能编译 -->
         <dependency>
-            <groupId>OpenInv</groupId>
-            <artifactId>OpenInv</artifactId>
-            <version>SNAPSHOT</version>
-            <scope>system</scope>
-            <systemPath>${project.basedir}/../lib/OpenInv.jar</systemPath>
-        </dependency>
-
-        <dependency>
-            <groupId>PlaceholderAPI</groupId>
-            <artifactId>PlaceholderAPI</artifactId>
-            <version>SNAPSHOT</version>
-            <scope>system</scope>
-            <systemPath>${project.basedir}/../lib/PlaceholderAPI-2.11.6.jar</systemPath>
+            <groupId>me.clip</groupId>
+            <artifactId>placeholderapi</artifactId>
+            <scope>provided</scope>
         </dependency>
 
     </dependencies>
