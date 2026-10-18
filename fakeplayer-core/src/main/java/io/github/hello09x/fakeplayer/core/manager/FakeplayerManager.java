@@ -55,21 +55,23 @@ public class FakeplayerManager {
     private final FakeplayerFeatureManager featureManager;
     private final NMSBridge nms;
     private final FakeplayerConfig config;
+    private final ResidentManager residentManager;
     private final ScheduledExecutorService lagMonitor;
 
     @Inject
-    public FakeplayerManager(NameManager nameManager, FakeplayerList playerList, FakeplayerFeatureManager featureManager, NMSBridge nms, FakeplayerConfig config) {
+    public FakeplayerManager(NameManager nameManager, FakeplayerList playerList, FakeplayerFeatureManager featureManager, NMSBridge nms, FakeplayerConfig config, ResidentManager residentManager) {
         this.nameManager = nameManager;
         this.playerList = playerList;
         this.featureManager = featureManager;
         this.nms = nms;
         this.config = config;
+        this.residentManager = residentManager;
 
         this.lagMonitor = Executors.newSingleThreadScheduledExecutor();
         this.lagMonitor.scheduleWithFixedDelay(() -> {
                                                    if (Bukkit.getServer().getTPS()[1] < config.getKaleTps()) {
                                                        Bukkit.getScheduler().runTask(Main.getInstance(), () -> {
-                                                           if (this.removeAll("low tps") > 0) {
+                                                           if (this.removeAllExceptResidents("low tps") > 0) {
                                                                Bukkit.broadcast(translatable("fakeplayer.manager.remove-all-on-low-tps", GRAY, ITALIC));
                                                            }
                                                        });
@@ -118,7 +120,8 @@ public class FakeplayerManager {
                             configs.get(Feature.skin).asBoolean(),
                             configs.get(Feature.replenish).asBoolean(),
                             configs.get(Feature.autofish).asBoolean(),
-                            configs.get(Feature.wolverine).asBoolean()
+                            configs.get(Feature.wolverine).asBoolean(),
+                            configs.get(Feature.resident).asBoolean()
                     );
                 })
                 .thenComposeAsync(fp::spawnAsync)
@@ -231,6 +234,20 @@ public class FakeplayerManager {
     }
 
     /**
+     * 移除所有假人，但跳过开启了驻留的假人（例如低 TPS 清理时）
+     *
+     * @param reason 原因
+     * @return 移除的数量
+     */
+    public int removeAllExceptResidents(@Nullable String reason) {
+        var targets = this.getAll().stream().filter(p -> !this.residentManager.isResident(p)).toList();
+        for (var target : targets) {
+            target.kick(text(REMOVAL_REASON_PREFIX + (reason == null ? "removed" : reason)));
+        }
+        return targets.size();
+    }
+
+    /**
      * @return 获取所有假人
      */
     public @NotNull List<Player> getAll() {
@@ -260,6 +277,8 @@ public class FakeplayerManager {
             return;
         }
         this.nameManager.unregister(fakeplayer.getSequenceName());
+        // 被移除 / 死亡退出时取消驻留，避免重启后又冒出来
+        this.residentManager.forget(target.getUniqueId());
         if (config.isDropInventoryOnQuiting()) {
             this.nms.createAction(
                     fakeplayer.getPlayer(),
@@ -486,6 +505,8 @@ public class FakeplayerManager {
     }
 
     public void onDisable() {
+        // 先快照驻留假人，再标记关闭中，之后踢人不会删除驻留记录
+        Exceptions.suppress(Main.getInstance(), this.residentManager::onDisable);
         Exceptions.suppress(Main.getInstance(), () -> this.removeAll("Plugin disabled"));
         Exceptions.suppress(Main.getInstance(), this.lagMonitor::shutdownNow);
     }

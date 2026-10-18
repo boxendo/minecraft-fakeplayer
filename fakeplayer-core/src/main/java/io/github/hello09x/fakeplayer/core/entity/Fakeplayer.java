@@ -17,6 +17,7 @@ import io.github.hello09x.fakeplayer.core.manager.naming.SequenceName;
 import io.github.hello09x.fakeplayer.core.util.Attributes;
 import io.github.hello09x.fakeplayer.core.util.InternalAddressGenerator;
 import lombok.Getter;
+import lombok.Setter;
 import net.kyori.adventure.text.format.TextDecoration;
 import org.bukkit.Bukkit;
 import org.bukkit.Location;
@@ -79,6 +80,13 @@ public class Fakeplayer {
     @NotNull
     private final UUID uuid;
 
+    /**
+     * 是否驻留：插件关闭时保存状态，服务器重启后原地恢复
+     */
+    @Getter
+    @Setter
+    private boolean resident;
+
     @Getter
     @UnknownNullability
     private NMSNetwork network;
@@ -115,6 +123,7 @@ public class Fakeplayer {
      * 让假人诞生
      */
     public CompletableFuture<Void> spawnAsync(@NotNull SpawnOption option) {
+        this.resident = option.resident();
         var address = ipGen.next();
         this.player.setMetadata(MetadataKeys.SPAWNED_AT, new FixedMetadataValue(Main.getInstance(), Bukkit.getCurrentTick()));
         return SchedulerUtils
@@ -244,7 +253,8 @@ public class Fakeplayer {
         if (this.creator instanceof Player pc && sender instanceof Player ps) {
             return pc.getUniqueId().equals(ps.getUniqueId());
         }
-        return creator.getClass() == sender.getClass() && creator.getName().equals(sender.getName());
+        // 服务器重启后恢复的假人，其创建者可能是离线的占位 sender，只能按名字比较
+        return this.creator.getName().equals(sender.getName());
     }
 
     public @NotNull UUID getUUID() {

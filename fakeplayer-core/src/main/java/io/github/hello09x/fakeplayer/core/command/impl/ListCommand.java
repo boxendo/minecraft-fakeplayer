@@ -1,9 +1,11 @@
 package io.github.hello09x.fakeplayer.core.command.impl;
 
+import com.google.inject.Inject;
 import com.google.inject.Singleton;
 import dev.jorel.commandapi.executors.CommandArguments;
 import io.github.hello09x.devtools.command.Page;
 import io.github.hello09x.fakeplayer.core.command.Permission;
+import io.github.hello09x.fakeplayer.core.manager.ResidentManager;
 import io.github.hello09x.fakeplayer.core.util.Mth;
 import org.apache.commons.lang3.StringUtils;
 import org.bukkit.Location;
@@ -18,6 +20,9 @@ import static net.kyori.adventure.text.format.TextDecoration.BOLD;
 
 @Singleton
 public class ListCommand extends AbstractCommand {
+
+    @Inject
+    private ResidentManager residentManager;
 
 
     private static String toLocationString(@NotNull Location location) {
@@ -49,10 +54,15 @@ public class ListCommand extends AbstractCommand {
 
                     var partKill = textOfChildren(space(), translatable("fakeplayer.command.list.button.kill", RED)).clickEvent(runCommand("/fp kill " + fakeplayer.getName()));
 
+                    var partResident = residentManager.isResident(fakeplayer)
+                            ? textOfChildren(space(), translatable("fakeplayer.config.resident", GOLD))
+                            : empty();
+
                     return textOfChildren(
                             text(fakeplayer.getName() + " (" + manager.getCreatorName(fakeplayer) + ")", GOLD),
                             text(" - ", GRAY),
                             text(toLocationString(fakeplayer.getLocation()), WHITE),
+                            partResident,
                             partTp,
                             partKill
                     );

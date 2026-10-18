@@ -1,10 +1,18 @@
 # FakePlayer
 
+> **Paper 26.3 port**
+> This fork targets Minecraft / Paper **26.3** (Java 25) only and keeps just the `fakeplayer-v26_3` module.
+> It requires CommandAPI **12.1.0+**. See [BUILD-26.3.md](BUILD-26.3.md) for the build steps and the full change list.
+>
+> New: **resident fake players** — `/fp resident <true|false> [name]` keeps a fake player at its position and
+> re-applies its actions after a server restart (permission `fakeplayer.command.resident`, data in
+> `plugins/fakeplayer/resident.yml`).
+
 ![BANNER_IMAGE](.github/README/BANNER.png)
 
 English | [简体中文](README_zh.md)
 
-This is a server side plugin inspired by [Carpet-Mod](https://github.com/gnembon/fabric-carpet) for Minecraft `1.20.x` and `1.21.x` and above.
+This is a server side plugin inspired by [Carpet-Mod](https://github.com/gnembon/fabric-carpet) for Minecraft `26.3`.
 
 [Click me](https://youtu.be/NePaDz-P5nI) to visit a demo video.
 

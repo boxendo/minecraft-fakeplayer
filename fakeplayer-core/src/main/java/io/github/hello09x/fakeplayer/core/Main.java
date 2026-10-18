@@ -15,11 +15,13 @@ import io.github.hello09x.fakeplayer.core.listener.FakeplayerListener;
 import io.github.hello09x.fakeplayer.core.listener.PlayerListener;
 import io.github.hello09x.fakeplayer.core.manager.FakeplayerAutofishManager;
 import io.github.hello09x.fakeplayer.core.manager.FakeplayerReplenishManager;
+import io.github.hello09x.fakeplayer.core.manager.ResidentManager;
 import io.github.hello09x.fakeplayer.core.manager.WildFakeplayerManager;
 import io.github.hello09x.fakeplayer.core.manager.invsee.InvseeManager;
 import io.github.hello09x.fakeplayer.core.placeholder.FakeplayerPlaceholderExpansion;
 import io.github.hello09x.fakeplayer.core.util.update.UpdateChecker;
 import lombok.Getter;
+import org.bukkit.Bukkit;
 import org.bukkit.plugin.java.JavaPlugin;
 import org.jetbrains.annotations.NotNull;
 
@@ -81,6 +83,15 @@ public final class Main extends JavaPlugin {
         if (injector.getInstance(FakeplayerConfig.class).isCheckForUpdates()) {
             checkForUpdatesAsync();
         }
+
+        // 延迟 1 秒恢复驻留假人，等待世界与其他插件初始化完成
+        Bukkit.getScheduler().runTaskLater(this, () -> {
+            try {
+                injector.getInstance(ResidentManager.class).restoreAll();
+            } catch (Throwable e) {
+                getLogger().warning("Failed to restore resident fake players: " + e);
+            }
+        }, 20L);
 
         getLogger().info("Enabled in %d ms".formatted(System.currentTimeMillis() - loadAt));
     }

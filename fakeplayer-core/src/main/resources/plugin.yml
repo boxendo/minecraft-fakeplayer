@@ -1,7 +1,7 @@
 name: fakeplayer
 version: '${revision}'
 main: io.github.hello09x.fakeplayer.core.Main
-api-version: '1.20'
+api-version: '26.3'
 author: hello09x
 website: 'https://github.com/tanyaofei/minecraft-fakeplayer'
 depend:
@@ -86,6 +86,8 @@ permissions:
     description: 'Allow player to run /fp hold'
   fakeplayer.command.cmd:
     description: 'Allow player to run /fp cmd'
+  fakeplayer.command.resident:
+    description: 'Allow player to run /fp resident (keep fake players across server restarts)'
   fakeplayer.config.replenish:
     description: 'Allow player to configure fake players can replenish'
   fakeplayer.config.replenish.chest:
@@ -111,6 +113,7 @@ permissions:
       - fakeplayer.command.respawn
       - fakeplayer.command.config
       - fakeplayer.command.set
+      - fakeplayer.command.resident
 
   fakeplayer.tp:
     description: 'Includes all permissions about teleport'

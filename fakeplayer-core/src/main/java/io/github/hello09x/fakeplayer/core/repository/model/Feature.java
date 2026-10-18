@@ -133,6 +133,18 @@ public enum Feature implements Translatable, Singletons {
             faker -> String.valueOf(autofishManager.get().isAutofish(faker)),
             (faker, value) -> autofishManager.get().setAutofish(faker, Boolean.parseBoolean(value))
     ),
+
+    /**
+     * 是否驻留：插件关闭时保存，服务器重启后原地恢复并继承动作
+     */
+    resident(
+            "fakeplayer.config.resident",
+            List.of(Permission.resident),
+            List.of("true", "false"),
+            "false",
+            faker -> String.valueOf(residentManager.get().isResident(faker)),
+            (faker, value) -> residentManager.get().setResident(faker, Boolean.parseBoolean(value))
+    ),
     ;
 
     @NotNull

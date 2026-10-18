@@ -79,6 +79,8 @@ public class CommandRegistry {
     private DebugCommand debugCommand;
     @Inject
     private StopCommand stopCommand;
+    @Inject
+    private ResidentCommand residentCommand;
 
     @Inject
     private FakeplayerConfig config;
@@ -191,6 +193,14 @@ public class CommandRegistry {
                                                 .executesPlayer(configCommand::listConfig)
                                 )
                                 .executesPlayer(configCommand::listConfig),
+
+                        command("resident")
+                                .withPermission(Permission.resident)
+                                .withShortDescription("fakeplayer.command.resident.description")
+                                .withRequirement(CommandSupports::hasFakeplayer)
+                                .withArguments(literals("value", List.of("true", "false")))
+                                .withOptionalArguments(fakeplayer("name"))
+                                .executes(residentCommand::resident),
 
                         command("expme")
                                 .withPermission(Permission.expme)

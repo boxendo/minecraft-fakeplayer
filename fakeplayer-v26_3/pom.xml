@@ -1,0 +1,61 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+    <modelVersion>4.0.0</modelVersion>
+    <parent>
+        <groupId>io.github.hello09x.fakeplayer</groupId>
+        <artifactId>fakeplayer-parent</artifactId>
+        <version>${revision}</version>
+    </parent>
+
+    <artifactId>fakeplayer-v26_3</artifactId>
+
+    <properties>
+        <maven.compiler.source>21</maven.compiler.source>
+        <maven.compiler.target>21</maven.compiler.target>
+        <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
+    </properties>
+
+    <dependencies>
+
+        <dependency>
+            <groupId>io.papermc.paper</groupId>
+            <artifactId>paper-api</artifactId>
+            <scope>provided</scope>
+        </dependency>
+
+        <dependency>
+            <groupId>io.github.hello09x.fakeplayer</groupId>
+            <artifactId>fakeplayer-core</artifactId>
+            <scope>provided</scope>
+        </dependency>
+
+        <dependency>
+            <groupId>io.github.hello09x.fakeplayer</groupId>
+            <artifactId>fakeplayer-api</artifactId>
+            <scope>provided</scope>
+        </dependency>
+
+        <dependency>
+            <groupId>org.projectlombok</groupId>
+            <artifactId>lombok</artifactId>
+            <scope>provided</scope>
+        </dependency>
+
+        <!--
+          Paper 1.20.5+ 运行在 mojang 映射下, 因此 26.3 不需要 specialsource 重映射:
+          直接对着 Paper 自己生成的 mojang 映射服务端 jar 编译即可。
+          该 jar 由首次启动 Paper 26.3 生成: <服务端目录>/versions/26.3/paper-26.3.jar
+        -->
+        <dependency>
+            <groupId>io.papermc.paper</groupId>
+            <artifactId>paper-server-mojang-mapped</artifactId>
+            <version>26.3</version>
+            <scope>system</scope>
+            <systemPath>${project.basedir}/../lib/paper-26.3-compile.jar</systemPath>
+        </dependency>
+
+    </dependencies>
+
+</project>

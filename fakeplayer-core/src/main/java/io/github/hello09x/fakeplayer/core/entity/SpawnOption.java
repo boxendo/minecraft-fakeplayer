@@ -30,7 +30,12 @@ public record SpawnOption(
 
         boolean autofish,
 
-        boolean wolverine
+        boolean wolverine,
+
+        /**
+         * 是否驻留（服务器重启后保留）
+         */
+        boolean resident
 
 ) {
 }

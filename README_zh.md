@@ -1,17 +1,26 @@
 # FakePlayer - 假人插件
 
+> **Paper 26.3 移植版**
+> 本工程已移植到 Minecraft / Paper **26.3**（Java 25），只保留 `fakeplayer-v26_3` 模块，
+> 需要 CommandAPI **12.1.0+**。构建方式、逐文件改动与实测记录见 [BUILD-26.3.md](BUILD-26.3.md)。
+>
+> 另新增 **假人驻留**：`/fp resident <true|false> [假人]`，开启后服务器重启会原地恢复假人并继承动作
+> （权限 `fakeplayer.command.resident`，数据保存在 `plugins/fakeplayer/resident.yml`）。
+
 [English](README.md) | 简体中文
 
 这个插件模拟出真实的玩家来保证区块的加载以及怪物的生成，生电服利器。
 
 ### 支持版本
 
-仅支持 `Paper` 及其下游如 (`Purpur`) 核心，所有测试均在 `Purpur` 进行，因此 `Purpur` 的兼容性最高
+仅支持 `Paper` 及其下游（如 `Purpur`）核心
 
-要求使用 JAVA 21 及以上
+要求使用 **JAVA 25** 及以上
 
-+ 支持 `1.20`, `1.20.2`, `1.20.3`, `1.20.4`, `1.20.5`, `1.20.6`
-+ 支持 `1.21`
++ 支持 `26.3`（本工程；实测 Paper 26.3 build 205）
++ 依赖 `CommandAPI` **12.1.0+**
+
+> 上游 0.3.19 支持 `1.20` ~ `1.21.10`，对应模块已从本工程移除。
 
 ## 特性
 

@@ -56,6 +56,29 @@ public class ActionManager {
                       .collect(Collectors.toSet());
     }
 
+    /**
+     * 获取玩家当前所有正在执行的动作及其设置（用于重启后恢复）
+     *
+     * @param player 玩家
+     * @return 动作 -> 设置
+     */
+    public @NotNull Map<ActionType, ActionSetting> getActions(@NotNull Player player) {
+        var manager = this.managers.get(player.getUniqueId());
+        if (manager == null || manager.isEmpty()) {
+            return Collections.emptyMap();
+        }
+
+        var result = new LinkedHashMap<ActionType, ActionSetting>();
+        for (var entry : manager.entrySet()) {
+            var setting = entry.getValue().getSetting();
+            if (setting.maximum == 0) {
+                continue;
+            }
+            result.put(entry.getKey(), setting.clone());
+        }
+        return result;
+    }
+
     public void setAction(
             @NotNull Player player,
             @NotNull ActionType action,

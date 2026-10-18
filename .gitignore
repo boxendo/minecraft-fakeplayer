@@ -130,3 +130,6 @@ server/
 buildtool/
 
 .flattened-pom.xml
+# build-time NMS classpath (Mojang code, do not commit)
+lib/*.jar
+

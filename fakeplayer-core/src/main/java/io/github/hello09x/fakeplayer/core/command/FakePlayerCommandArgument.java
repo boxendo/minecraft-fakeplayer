@@ -35,7 +35,8 @@ public class FakePlayerCommandArgument extends Argument<CommandResult> implement
      * @param nodeName the name of the node for this argument
      */
     public FakePlayerCommandArgument(String nodeName) {
-        super(nodeName, StringArgumentType.greedyString());
+        // CommandAPI 12: Argument(String, Supplier<ArgumentType<?>>)
+        super(nodeName, () -> StringArgumentType.greedyString());
         applySuggestions();
     }
 

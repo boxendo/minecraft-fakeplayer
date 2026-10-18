@@ -37,6 +37,7 @@ public interface Permission {
     String move = "fakeplayer.command.move";
     String ride = "fakeplayer.command.ride";
     String swap = "fakeplayer.command.swap";
+    String resident = "fakeplayer.command.resident";
     String replenish = "fakeplayer.config.replenish";
     String replenishFromChest = "fakeplayer.config.replenish.chest";
     String autofish = "fakeplayer.config.autofish";
