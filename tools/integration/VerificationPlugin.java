@@ -686,13 +686,79 @@ public final class VerificationPlugin extends JavaPlugin implements Listener {
         });
     }
 
+    private record QuitHook(String stage,String name,String uuid,String creator,boolean online,int tick) {}
+    private final List<QuitHook> quitHooks=new ArrayList<>();
+    private final Set<String> hookAccounts=new HashSet<>();
+    private final List<String> duplicateRegistrations=new ArrayList<>();
+    private List<QuitHook> hookEvents(String name,String stage) {
+        return quitHooks.stream().filter(e->e.name().equalsIgnoreCase(name)&&e.stage().equals(stage)).toList();
+    }
+    private CompletableFuture<Void> quitHooks() {
+        quitHooks.clear(); hookAccounts.clear(); duplicateRegistrations.clear();
+        return withConfig(Map.of("pre-spawn-commands",List.of("/fphook pre %p %u %c"),
+                "post-quit-commands",List.of("fphook post %p %u %c"),
+                "after-quit-commands",List.of("/fphook after %p %u %c","", "  "),"prevent-kicking","NEVER"),
+                ()->spawn("QuitHook52").thenCompose(p->{
+                    var uuid=p.getUniqueId().toString(); manager.remove(p.getName(),"quit hook fixture");
+                    check(manager.get(p.getName())==null,"normal removal clears fake registry before deferred hook");
+                    return later(25,()->{
+                        check(hookEvents(p.getName(),"post").size()==1,"post-quit command runs once");
+                        check(hookEvents(p.getName(),"after").size()==1,"after-quit command runs once after registry removal");
+                        var after=hookEvents(p.getName(),"after").getFirst();
+                        check(after.uuid().equals(uuid)&&after.creator().equals("CONSOLE"),"deferred placeholders retain original UUID and creator");
+                        check(!after.online(),"deferred hook runs after player is offline");
+                        check(!hookAccounts.contains(p.getName().toLowerCase(Locale.ROOT)),"mock registration removed after quit");
+                    });
+                }).thenCompose(v->spawn("QuickHook52")).thenCompose(p->{
+                    manager.remove(p.getName(),"immediate reconnect");return spawn("quickhook52");
+                }).thenCompose(p->later(25,()->{
+                    check(duplicateRegistrations.isEmpty(),"immediate reconnect runs old cleanup before new registration");
+                    check(hookAccounts.contains("quickhook52"),"old cleanup cannot erase new registration");
+                    check(hookEvents(p.getName(),"after").size()==1,"old deferred task does not repeat after reconnect");
+                    var events=quitHooks.stream().filter(e->e.name().equalsIgnoreCase(p.getName())).map(QuitHook::stage).toList();
+                    check(events.equals(List.of("pre","post","after","pre")),"quit and reconnect command order is pre post after pre");
+                    manager.remove(p.getName(),"done");
+                })).thenCompose(v->later(3,()->check(hookEvents("quickhook52","after").size()==2,"second quit has its own exactly-once hook")))
+                .thenCompose(v->spawn("ExternalHook52")).thenCompose(p->{
+                    p.kick(net.kyori.adventure.text.Component.text("fixture external quit hook"));
+                    return later(3,()->check(hookEvents(p.getName(),"after").size()==1,"external kick also runs after-quit hook once"));
+                }).thenCompose(v->spawn("kickguardbot")).thenCompose(p->{
+                    p.kick(net.kyori.adventure.text.Component.text("fixture external quit hook"));
+                    return later(3,()->{
+                        check(p.isOnline()&&hookEvents(p.getName(),"after").isEmpty(),"cancelled kick does not run quit hook");
+                        manager.remove(p.getName(),"done");
+                    });
+                }).thenCompose(v->later(3,()->check(hookEvents("kickguardbot","after").size()==1,"later genuine quit still runs after-quit hook")))
+                .thenCompose(v->spawn("SnapshotHook52")).thenCompose(p->{
+                    manager.remove(p.getName(),"snapshot commands");
+                    var commands=Main.getInjector().getInstance(io.github.hello09x.fakeplayer.core.config.FakeplayerConfig.class).getAfterQuitCommands();
+                    commands.clear(); commands.add("fphook changed %p %u %c");
+                    return later(3,()->{
+                        check(hookEvents(p.getName(),"after").size()==1&&hookEvents(p.getName(),"changed").isEmpty(),"pending hook keeps command snapshot across config changes");
+                        commands.clear(); commands.addAll(List.of("fphook explode %p %u %c","fphook tail %p %u %c"));
+                    });
+                }).thenCompose(v->spawn("ErrorHook52")).thenCompose(p->{
+                    manager.remove(p.getName(),"hook command failure");
+                    return later(3,()->check(hookEvents(p.getName(),"tail").size()==1,"one command throwing does not skip remaining after-quit commands"));
+                }));
+    }
+
     public boolean onCommand(CommandSender sender, Command command, String label, String[] args) {
         if (!sender.isOp()) return true;
+        if (command.getName().equals("fphook")) {
+            if(args.length!=4) throw new IllegalArgumentException("hook requires stage name UUID creator");
+            String name=args[1].toLowerCase(Locale.ROOT);
+            if(args[0].equals("explode")) throw new IllegalStateException("fixture after-quit command failure");
+            quitHooks.add(new QuitHook(args[0],args[1],args[2],args[3],Bukkit.getPlayerExact(args[1])!=null,Bukkit.getCurrentTick()));
+            if(args[0].equals("pre")&&!hookAccounts.add(name)) duplicateRegistrations.add(name);
+            if(args[0].equals("after")) hookAccounts.remove(name);
+            return true;
+        }
         results.clear();
         String phase = args.length == 0 ? "state" : args[0];
         try {
             CompletableFuture<Void> future = switch (phase) {
-                case "integrity-resident-toggle" -> residentToggleIntegrity(); case "integrity-case" -> caseIntegrity(); case "integrity-nearest" -> nearestIntegrity(); case "integrity-refill" -> refillIntegrity(); case "integrity-action" -> faultIntegrity();
+                case "quit-hooks" -> quitHooks(); case "integrity-resident-toggle" -> residentToggleIntegrity(); case "integrity-case" -> caseIntegrity(); case "integrity-nearest" -> nearestIntegrity(); case "integrity-refill" -> refillIntegrity(); case "integrity-action" -> faultIntegrity();
                 case "state" -> state(); case "pending" -> pending(); case "resident" -> resident();
                 case "restored" -> restored(); case "death" -> death(); case "actions" -> actions();
                 case "management" -> withConfig(Map.of("detect-ip",false),this::management); case "conflicts" -> conflicts(); case "budgets" -> budgets(); case "closing" -> closing(); case "race" -> race(); case "skin-configured" -> skinConfigured(); case "journal-restored" -> journalRestored(); case "offline-management" -> offlineManagement();

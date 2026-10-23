@@ -146,6 +146,7 @@ public class SpawnCoordinator {
                     // An existing ticket owned by this plugin is also valid.
                 }
             }
+            Main.getInjector().getInstance(QuitCommandManager.class).beforeSpawn(job.fake.getName());
             if (!job.restoring) {
                 diagnostics.stage(job.fake,"PREPARING","运行生成前命令");
                 Main.getInjector().getInstance(FakeplayerManager.class).dispatchCommandsEarly(job.fake,config.getPreSpawnCommands());

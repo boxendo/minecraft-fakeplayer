@@ -1,12 +1,12 @@
 # Paper 26.3 维护说明
 
-当前维护版本：`0.5.1-paper26.3`，维护代码的发布目标为 fork 的 `master`。
-本次候选版开发分支为 `fix/paper26.3-integrity`，基于已发布的 `12071ea`。
+当前维护版本：`0.5.2-paper26.3`，维护代码的发布目标为 fork 的 `master`。
+本次候选版开发分支为 `fix/paper26.3-quit-hooks`，基于已发布的 `0df65c9`。
 
 ## 安装和配置
 
 1. 正常停止服务器，备份原插件 JAR、`plugins/fakeplayer/` 和世界目录。26.3 的玩家数据通常在世界根目录的 `players/data/`，以新诊断命令读取的原生目录为准。
-2. 用 `target/fakeplayer-0.5.1-paper26.3.jar` 替换旧插件，保留 CommandAPI。
+2. 用 `target/fakeplayer-0.5.2-paper26.3.jar` 替换旧插件，保留 CommandAPI。
 3. 编辑 `plugins/fakeplayer/config.yml`，不要编辑会被覆盖的 `config.tmpl.yml`。
 4. 启动服务器，先用一个已有假人验收背包和经验，再验证关服重启驻留。
 
@@ -35,6 +35,23 @@ keep-inventory-on-death: true
 `/fp kill` 表示让假人离线，同时取消它的驻留；不会删除原生玩家存档。
 `/fp resident true` 才表示服务器重启后自动恢复；只重新生成不等于自动重新执行上次动作。
 此前已经被旧版本覆盖掉的物品或经验不能凭空恢复，需要使用服务器原有备份。
+
+## 0.5.2 退出命令修复
+
+旧版在 `PlayerQuitEvent` 的 LOW 阶段清除了登记，MONITOR 阶段因此误判为普通玩家，跳过 `after-quit-commands`。延迟任务还依赖已经清除的创建者信息。现在退出前保存命令及 `%p`、`%u`、`%c`，退出事件结束后下一 tick 使用控制台执行；不再等 20 tick 后重新查登记。
+
+待执行的同名退出命令在下一次生成前命令之前派发，旧延迟任务随之取消。同一名称大小写变化也受保护；已经被其他玩家占用的名称不会执行旧清理。命令异常单独记录，不中断剩余命令。正常停服/禁用时会尝试派发尚未执行的退出命令，但外部命令所属插件若已禁用，仍可能无法执行。
+
+仅清除 AuthMe 注册时，可使用：
+
+```yaml
+after-quit-commands:
+  - 'authme unregister %p'
+```
+
+命令开头带 `/` 也支持。配置生效后，正常停服替换插件并启动；仅更改配置可执行 `/fp reload`。`purgeplayer %p force` 属于更广泛清理，上游实现还会根据 AuthMe 配置清除玩家数据、Essentials 或权限；保持背包/经验时应先核对配置。参考 [AuthMe 管理注销命令](https://github.com/AuthMe/AuthMeReloaded/blob/master/authme-core/src/main/java/fr/xephi/authme/command/executable/authme/UnregisterAdminCommand.java) 与 [PurgeExecutor](https://github.com/AuthMe/AuthMeReloaded/blob/master/authme-core/src/main/java/fr/xephi/authme/task/purge/PurgeExecutor.java)。
+
+派发命令不等于外部数据库操作已经完成。上游 AuthMe 的 `purgeplayer` 会异步处理；本修复保证 fakeplayer 的派发顺序，不提供 AuthMe 数据库完成屏障。外部插件的异步失败和实际账户状态仍应查看其回执。本轮没有安装用户实际版本的 AuthMe，测试范围见 [0.5.2 验证记录](verification/RESULTS-0.5.2.md)。
 
 ## 0.5.1 数据保护和稳定性修复
 
@@ -70,7 +87,7 @@ keep-inventory-on-death: true
 
 ```sh
 mvn package
-python3 tools/verify-package.py target/fakeplayer-0.5.1-paper26.3.jar
+python3 tools/verify-package.py target/fakeplayer-0.5.2-paper26.3.jar
 ```
 
 打包核对会逐个比对当前编译输出与发布 JAR 内的类。

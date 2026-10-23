@@ -6,3 +6,5 @@ depend: [fakeplayer]
 commands:
   fpverify:
     permission: op
+  fphook:
+    permission: op

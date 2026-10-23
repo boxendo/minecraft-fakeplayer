@@ -1,0 +1,2 @@
+PASS rapid resident enable/disable leaves no saved record
+PASS phase integrity-resident-toggle

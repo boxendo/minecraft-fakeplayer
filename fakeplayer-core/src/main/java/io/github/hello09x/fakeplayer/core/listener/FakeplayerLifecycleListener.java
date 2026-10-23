@@ -5,6 +5,7 @@ import com.google.inject.Singleton;
 import io.github.hello09x.fakeplayer.core.Main;
 import io.github.hello09x.fakeplayer.core.config.FakeplayerConfig;
 import io.github.hello09x.fakeplayer.core.manager.FakeplayerManager;
+import io.github.hello09x.fakeplayer.core.manager.QuitCommandManager;
 import org.bukkit.Bukkit;
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.EventPriority;
@@ -22,11 +23,13 @@ public class FakeplayerLifecycleListener implements Listener {
 
     private final FakeplayerManager manager;
     private final FakeplayerConfig config;
+    private final QuitCommandManager quitCommands;
 
     @Inject
-    public FakeplayerLifecycleListener(FakeplayerManager manager, FakeplayerConfig config) {
+    public FakeplayerLifecycleListener(FakeplayerManager manager, FakeplayerConfig config, QuitCommandManager quitCommands) {
         this.manager = manager;
         this.config = config;
+        this.quitCommands = quitCommands;
     }
 
     @EventHandler(ignoreCancelled = true, priority = EventPriority.LOWEST)
@@ -65,20 +68,14 @@ public class FakeplayerLifecycleListener implements Listener {
             return;
         }
 
+        // LOW cleanup removes the registry entry before MONITOR; capture immutable placeholders now.
+        quitCommands.capture(player, java.util.Objects.requireNonNull(manager.getCreatorName(player)), config.getAfterQuitCommands());
         manager.dispatchCommands(player, config.getPostQuitCommands());
     }
 
     @EventHandler(ignoreCancelled = true, priority = EventPriority.MONITOR)
     public void onAfterQuit(@NotNull PlayerQuitEvent event) {
-        var player = event.getPlayer();
-        if (this.manager.isNotFake(player)) {
-            // Not a fake player
-            return;
-        }
-
-        Bukkit.getScheduler().runTaskLater(Main.getInstance(), () -> {
-            manager.dispatchCommands(player, config.getAfterQuitCommands());
-        }, 20);
+        quitCommands.afterQuit(event.getPlayer());
     }
 
 

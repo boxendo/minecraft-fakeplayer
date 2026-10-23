@@ -1,0 +1,2 @@
+Fresh scoreboard objective fpQuit52 created; after-quit command counts each player once.
+There are 1 of a max of 100 players online: residentbot

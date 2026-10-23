@@ -1,0 +1,2 @@
+PASS after-quit command runs once during normal plugin shutdown; scoreboard persisted across process restart
+residentbot has 1 [fpQuit52]

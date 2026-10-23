@@ -1,0 +1,17 @@
+PASS normal removal clears fake registry before deferred hook
+PASS post-quit command runs once
+PASS after-quit command runs once after registry removal
+PASS deferred placeholders retain original UUID and creator
+PASS deferred hook runs after player is offline
+PASS mock registration removed after quit
+PASS immediate reconnect runs old cleanup before new registration
+PASS old cleanup cannot erase new registration
+PASS old deferred task does not repeat after reconnect
+PASS quit and reconnect command order is pre post after pre
+PASS second quit has its own exactly-once hook
+PASS external kick also runs after-quit hook once
+PASS cancelled kick does not run quit hook
+PASS later genuine quit still runs after-quit hook
+PASS pending hook keeps command snapshot across config changes
+PASS one command throwing does not skip remaining after-quit commands
+PASS phase quit-hooks
