@@ -1,0 +1,3 @@
+PASS jump changes actual position
+PASS mine breaks actual stone
+PASS phase actions

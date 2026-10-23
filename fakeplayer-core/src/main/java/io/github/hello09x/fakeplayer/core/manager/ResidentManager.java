@@ -29,6 +29,7 @@ public class ResidentManager {
     private final FakeplayerConfig config;
     private final SpawnCoordinator coordinator;
     private final DiagnosticManager diagnostics;
+    private final YamlSaveQueue writer;
     private final File file=new File(Main.getInstance().getDataFolder(),"resident.yml");
     private final Map<UUID,Map<String,Object>> saved=new LinkedHashMap<>();
     private final Set<UUID> restoring=new HashSet<>();
@@ -42,9 +43,9 @@ public class ResidentManager {
 
     @Inject
     public ResidentManager(FakeplayerList players, ActionManager actions, FakeplayerConfig config,
-                           SpawnCoordinator coordinator, DiagnosticManager diagnostics) {
+                           SpawnCoordinator coordinator, DiagnosticManager diagnostics, YamlSaveQueue writer) {
         this.playerList=players; this.actionManager=actions; this.config=config;
-        this.coordinator=coordinator; this.diagnostics=diagnostics;
+        this.coordinator=coordinator; this.diagnostics=diagnostics; this.writer=writer;
         load();
         Bukkit.getScheduler().runTaskTimer(Main.getInstance(), () -> {
             if (started && !shuttingDown) { restoreAll(); saveBatched(); }
@@ -275,10 +276,8 @@ public class ResidentManager {
     }
 
     private void write() {
-        if (!readable || (saved.isEmpty()&&!file.exists())) return;
-        var yaml=new YamlConfiguration(); yaml.set("format-version",2); yaml.set("players",new ArrayList<>(saved.values()));
-        try { AtomicYamlFiles.write(yaml,file.toPath()); }
-        catch (Exception error) { log.log(java.util.logging.Level.SEVERE,"Failed to save resident.yml",error); }
+        if (!readable) return;
+        writer.submit(file.toPath(), Map.of("format-version", 2, "players", new ArrayList<>(saved.values())));
     }
 
     private void removeEntry(UUID uuid) {

@@ -1,12 +1,12 @@
 # Paper 26.3 维护说明
 
-当前维护版本：`0.5.0-paper26.3`，维护代码的发布目标为 fork 的 `master`。
-本次开发分支为 `feat/paper26.3-management`，基于 `7f35b72`。
+当前维护版本：`0.5.1-paper26.3`，维护代码的发布目标为 fork 的 `master`。
+本次候选版开发分支为 `fix/paper26.3-integrity`，基于已发布的 `12071ea`。
 
 ## 安装和配置
 
 1. 正常停止服务器，备份原插件 JAR、`plugins/fakeplayer/` 和世界目录。26.3 的玩家数据通常在世界根目录的 `players/data/`，以新诊断命令读取的原生目录为准。
-2. 用 `target/fakeplayer-0.5.0-paper26.3.jar` 替换旧插件，保留 CommandAPI。
+2. 用 `target/fakeplayer-0.5.1-paper26.3.jar` 替换旧插件，保留 CommandAPI。
 3. 编辑 `plugins/fakeplayer/config.yml`，不要编辑会被覆盖的 `config.tmpl.yml`。
 4. 启动服务器，先用一个已有假人验收背包和经验，再验证关服重启驻留。
 
@@ -36,6 +36,19 @@ keep-inventory-on-death: true
 `/fp resident true` 才表示服务器重启后自动恢复；只重新生成不等于自动重新执行上次动作。
 此前已经被旧版本覆盖掉的物品或经验不能凭空恢复，需要使用服务器原有备份。
 
+## 0.5.1 数据保护和稳定性修复
+
+- 延迟箱子补货在执行前及事件回调后重新检查手持格、物品、原箱子、窗口、距离、权限和假人在线状态。切换物品、热键栏或窗口、关闭补货、退出、取消事件时不会继续转移。同一假人同时只保留一次箱子补货请求。
+- 标准 Minecraft 英文名称忽略大小写复用 UUID；换大小写重登保留同一份背包和经验。数据库阻止新建仅大小写不同的档案。
+- 旧版本已经产生的两份大小写存档保留各自 UUID，不自动合并；使用各自的原始拼写访问。其他大小写组合会提示歧义，并列出原始名称。此规则不能恢复旧版本已经覆盖的数据。
+- 注视附近实体使用距离平方选择最近目标，跳过自己和已经失效的实体。
+- 驻留和诊断 YAML 在专用单线程中编码、写盘；提交的是独立快照，同一文件的待写快照合并为最新值。失败快照保留并每秒重试，重复失败不刷屏。关服等待最终保存，最长 30 秒，失败会明确报错。
+- Bukkit 状态采集和原生 `player.saveData()` 仍在服务器线程执行。正常关服会保存最终状态；突然断电或强制终止仍可能损失上一次自动保存之后的状态。
+- 单个动作连续失败 3 次后停止；冷却 tick 不会清除失败计数，成功执行才会清除。其他动作继续运行，原因写入 `/fp diagnose <名称>` 的近期事件。重新执行原动作命令即可重试；已停止动作不再进入新的驻留快照。
+- 替换或停止动作时清理原动作，避免残留正在使用物品等状态。
+
+构建哈希及本轮真实 Paper 测试见 [0.5.1 验证记录](verification/RESULTS-0.5.1.md)。
+
 ## 修复内容
 
 - 名称检查不再通过主线程的 `getOfflinePlayer(String)` 联网查询；在线皮肤查询也异步完成。
@@ -57,7 +70,7 @@ keep-inventory-on-death: true
 
 ```sh
 mvn package
-python3 tools/verify-package.py target/fakeplayer-0.5.0-paper26.3.jar
+python3 tools/verify-package.py target/fakeplayer-0.5.1-paper26.3.jar
 ```
 
 打包核对会逐个比对当前编译输出与发布 JAR 内的类。

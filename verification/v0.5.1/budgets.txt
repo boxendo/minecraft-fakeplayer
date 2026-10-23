@@ -1,0 +1,14 @@
+PASS all queued budget jobs started exactly once
+PASS per-tick spawn budget enforced
+PASS new target chunk request budget enforced
+PASS concurrent prelogin count bounded
+PASS completed queue releases jobs, loads and tickets
+PASS full queue rejects and releases registry
+PASS rejected queue job does not run pre-spawn hooks
+PASS queue stays full until jobs start
+PASS admitted jobs run pre-spawn hooks once
+PASS world cap reserves queued jobs and blocks third player
+PASS world cap enforced when jobs are online
+PASS fake can leave capped world
+PASS cross-world teleport cannot bypass a full world cap
+PASS phase budgets

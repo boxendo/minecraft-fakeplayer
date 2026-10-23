@@ -1,6 +1,5 @@
 package io.github.hello09x.fakeplayer.core.manager.action;
 
-import com.google.common.base.Throwables;
 import com.google.inject.Inject;
 import com.google.inject.Singleton;
 import io.github.hello09x.fakeplayer.api.spi.ActionSetting;
@@ -8,6 +7,8 @@ import io.github.hello09x.fakeplayer.api.spi.ActionTicker;
 import io.github.hello09x.fakeplayer.api.spi.ActionType;
 import io.github.hello09x.fakeplayer.api.spi.NMSBridge;
 import io.github.hello09x.fakeplayer.core.Main;
+import io.github.hello09x.fakeplayer.core.manager.diagnostic.DiagnosticManager;
+import java.util.logging.Level;
 import org.bukkit.Bukkit;
 import org.bukkit.entity.Player;
 import org.jetbrains.annotations.NotNull;
@@ -25,11 +26,15 @@ public class ActionManager {
     private final Map<UUID, Map<ActionType, ActionTicker>> managers = new HashMap<>();
 
     private final NMSBridge bridge;
+    private final DiagnosticManager diagnostics;
+    private final Map<ActionTicker, Integer> failures = new IdentityHashMap<>();
+    private static final int MAX_FAILURES = 3;
 
 
     @Inject
-    public ActionManager(NMSBridge bridge) {
+    public ActionManager(NMSBridge bridge, DiagnosticManager diagnostics) {
         this.bridge = bridge;
+        this.diagnostics = diagnostics;
         Bukkit.getScheduler().runTaskTimer(Main.getInstance(), this::tick, 0, 1);
     }
 
@@ -84,51 +89,63 @@ public class ActionManager {
             @NotNull ActionType action,
             @NotNull ActionSetting setting
     ) {
-        var managers = this.managers.computeIfAbsent(player.getUniqueId(), key -> new HashMap<>());
-        managers.put(action, bridge.createAction(player, action, setting));
+        var ticker = bridge.createAction(player, action, setting);
+        var actions = this.managers.computeIfAbsent(player.getUniqueId(), key -> new HashMap<>());
+        var old = actions.remove(action);
+        if (old != null) stopSafely(old);
+        actions.put(action, ticker);
     }
 
     public void stop(@NotNull Player player) {
-        var managers = this.managers.get(player.getUniqueId());
-        if (managers == null || managers.isEmpty()) {
-            return;
-        }
+        var actions = managers.remove(player.getUniqueId());
+        if (actions != null) new ArrayList<>(actions.values()).forEach(this::stopSafely);
+    }
 
-        for (var entry : managers.entrySet()) {
-            if (!entry.getValue().equals(ActionSetting.stop())) {
-                entry.setValue(bridge.createAction(player, entry.getKey(), ActionSetting.stop()));
-            }
-        }
+    private void stopSafely(ActionTicker ticker) {
+        failures.remove(ticker);
+        try { ticker.stop(); }
+        catch (Throwable error) { log.log(Level.WARNING, "Failed to clean up a stopped fakeplayer action", error); }
     }
 
     public void tick() {
-        var itr = managers.entrySet().iterator();
-        while (itr.hasNext()) {
-            var entry = itr.next();
-            var player = Bukkit.getPlayer(entry.getKey());
-
+        // Actions can synchronously invoke plugin events which replace/stop actions.
+        for (var id : new ArrayList<>(managers.keySet())) {
+            var actions = managers.get(id);
+            if (actions == null) continue;
+            var player = Bukkit.getPlayer(id);
             if (player == null || !player.isValid()) {
-                // 假人下线或者死亡
-                itr.remove();
-                for (var ticker : entry.getValue().values()) {
-                    ticker.stop();
-                }
+                managers.remove(id, actions);
+                new ArrayList<>(actions.values()).forEach(this::stopSafely);
                 continue;
             }
-
-            // do tick
-            entry.getValue().values().removeIf(ticker -> {
+            for (var entry : new ArrayList<>(actions.entrySet())) {
+                var type = entry.getKey();
+                var ticker = entry.getValue();
+                if (managers.get(id) != actions || actions.get(type) != ticker) continue;
+                boolean attempted = ticker.getSetting().wait <= 0;
                 try {
-                    return ticker.tick();
-                } catch (Throwable e) {
-                    log.warning(Throwables.getStackTraceAsString(e));
-                    return false;
+                    if (ticker.tick()) {
+                        actions.remove(type, ticker);
+                        failures.remove(ticker);
+                    } else if (attempted) {
+                        // Cooldown ticks are not successful attempts; they must not hide recurring errors.
+                        failures.remove(ticker);
+                    }
+                } catch (Throwable error) {
+                    if (managers.get(id) != actions || actions.get(type) != ticker) continue;
+                    int count = failures.merge(ticker, 1, Integer::sum);
+                    if (count == 1) log.log(Level.WARNING,
+                            "Fakeplayer " + player.getName() + " action " + type + " failed (1/" + MAX_FAILURES + ")", error);
+                    if (count >= MAX_FAILURES) {
+                        actions.remove(type, ticker);
+                        stopSafely(ticker);
+                        var message = type + " 连续失败 " + count + " 次，已停止；重新执行该动作命令可重试。";
+                        diagnostics.note(id, "ACTION_STOPPED", message + " " + error);
+                        log.warning("Fakeplayer " + player.getName() + ": " + message);
+                    }
                 }
-            });
-            if (entry.getValue().isEmpty()) {
-                itr.remove();
             }
+            if (actions.isEmpty()) managers.remove(id, actions);
         }
     }
-
 }

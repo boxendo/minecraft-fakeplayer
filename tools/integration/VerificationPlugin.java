@@ -381,14 +381,17 @@ public final class VerificationPlugin extends JavaPlugin implements Listener {
                     var e=dm.find(Bukkit.getConsoleSender(),"loginblocked");
                     check(e!=null&&e.failedStage.equals("LOGIN")&&e.events.stream().anyMatch(text->text.contains("fixture login denial")),"diagnostics preserve login denial reason");
                     return (Void)null;
-                })).thenCompose(f->f))).thenCompose(v->spawn("kickguardbot")).thenAccept(p->{
+                })).thenCompose(f->f))).thenCompose(v->spawn("kickguardbot")).thenCompose(p->{
             p.kick(net.kyori.adventure.text.Component.text("fixture external"));
             check(p.isOnline(),"fixture kick cancellation keeps fake online");
             var e=dm.find(Bukkit.getConsoleSender(),"kickguardbot");
             check(e.events.stream().anyMatch(text->text.contains("KICK")&&text.contains("cancelled=true")),"diagnostics preserve cancelled kick outcome");
             manager.remove(p.getName(),"test done"); dm.flush();
-            var yaml=org.bukkit.configuration.file.YamlConfiguration.loadConfiguration(new java.io.File(Main.getInstance().getDataFolder(),"diagnostics.yml"));
-            check(yaml.getMapList("players").stream().anyMatch(row->"tpdenybot".equals(row.get("name"))&&"TELEPORT".equals(row.get("failed-stage"))),"diagnostic history persists to disk");
+            long expectedAttempt=dm.find(Bukkit.getConsoleSender(),"tpdenybot").lastAttempt;
+            return awaitDisk(()->{
+                var yaml=org.bukkit.configuration.file.YamlConfiguration.loadConfiguration(new java.io.File(Main.getInstance().getDataFolder(),"diagnostics.yml"));
+                return yaml.getMapList("players").stream().anyMatch(row->"tpdenybot".equals(row.get("name"))&&"TELEPORT".equals(row.get("failed-stage"))&&Long.valueOf(expectedAttempt).equals(row.get("last-attempt")));
+            }).thenRun(()->check(true,"fresh diagnostic history asynchronously persists to disk"));
         });
     }
 
@@ -527,12 +530,169 @@ public final class VerificationPlugin extends JavaPlugin implements Listener {
         }));
     }
 
+    private CompletableFuture<Void> awaitDisk(java.util.function.BooleanSupplier condition) {
+        var future=new CompletableFuture<Void>(); int[] attempts={0};
+        var task=Bukkit.getScheduler().runTaskTimer(this,()->{
+            try {
+                if(condition.getAsBoolean()) future.complete(null);
+                else if(++attempts[0]>=100) future.completeExceptionally(new AssertionError("fresh disk snapshot not available within 10 seconds"));
+            } catch(Throwable e) { future.completeExceptionally(e); }
+        },2,2);
+        future.whenComplete((v,e)->task.cancel()); return future;
+    }
+
+    private CompletableFuture<Void> residentToggleIntegrity() {
+        return spawn("Toggle51").thenCompose(p->{
+            var rm=Main.getInjector().getInstance(ResidentManager.class);
+            rm.setResident(p,true); rm.setResident(p,false); rm.save();
+            return awaitDisk(()->{
+                var yaml=org.bukkit.configuration.file.YamlConfiguration.loadConfiguration(new java.io.File(Main.getInstance().getDataFolder(),"resident.yml"));
+                return yaml.getMapList("players").stream().noneMatch(row->"Toggle51".equals(row.get("name")));
+            }).thenRun(()->{check(rm.find(Bukkit.getConsoleSender(),"Toggle51")==null,"rapid resident enable/disable leaves no saved record");manager.remove(p.getName(),"done");});
+        });
+    }
+
+    private CompletableFuture<Void> caseIntegrity() {
+        var repo=Main.getInjector().getInstance(io.github.hello09x.fakeplayer.core.repository.FakeplayerProfileRepository.class);
+        // Seed these two rows offline before startup to exercise non-destructive migration.
+        var oldA=repo.selectUUIDByName("LegacyCase51"); var oldB=repo.selectUUIDByName("legacycase51");
+        check(oldA!=null && oldB!=null && !oldA.equals(oldB),"legacy case conflicts keep independent UUIDs");
+        try { repo.selectUUIDByName("LEGACYCASE51"); throw new AssertionError("ambiguous legacy name accepted"); }
+        catch (io.github.hello09x.devtools.command.exception.CommandException expected) { check(true,"ambiguous legacy spelling rejected without merging saves"); }
+        UUID[] id=new UUID[1];
+        return spawn("CaseFresh51").thenCompose(p->{
+            id[0]=p.getUniqueId(); equip(p); manager.remove(p.getName(),"case reconnect");
+            return spawn("casefresh51");
+        }).thenCompose(p->{
+            check(id[0].equals(p.getUniqueId()),"lowercase reconnect reuses UUID"); equipped(p);
+            manager.remove(p.getName(),"case reconnect"); return spawn("CASEFRESH51");
+        }).thenAccept(p->{
+            check(id[0].equals(p.getUniqueId()),"uppercase reconnect reuses UUID"); equipped(p);
+            manager.remove(p.getName(),"done");
+            try { repo.insert("cASEfRESH51",UUID.randomUUID()); throw new AssertionError("duplicate inserted"); }
+            catch (RuntimeException expected) { check(true,"database rejects new case duplicate"); }
+        });
+    }
+
+    private CompletableFuture<Void> nearestIntegrity() {
+        return spawn("Nearest51").thenAccept(p->{
+            var loc=p.getLocation(); var far=p.getWorld().spawn(loc.clone().add(4,0,0),ArmorStand.class);
+            var near=p.getWorld().spawn(loc.clone().add(1,0,0),ArmorStand.class);
+            var gone=p.getWorld().spawn(loc.clone().add(.1,0,0),ArmorStand.class); gone.remove();
+            try {
+                var method=io.github.hello09x.fakeplayer.core.entity.action.impl.LookAtEntityAction.class.getDeclaredMethod("getNearestEntity",Player.class,Collection.class);
+                method.setAccessible(true); var action=new io.github.hello09x.fakeplayer.core.entity.action.impl.LookAtEntityAction(null);
+                check(method.invoke(action,p,List.of(far,near))==near,"nearest selected even when farther entity appears first");
+                check(method.invoke(action,p,List.of(near,far))==near,"nearest independent of candidate order");
+                check(method.invoke(action,p,List.of(p,gone,far,near))==near,"nearest excludes self and removed entities");
+                check(method.invoke(action,p,List.of())==null,"nearest empty candidates safe");
+            } catch(ReflectiveOperationException error) { throw new RuntimeException(error); }
+            finally { far.remove(); near.remove(); manager.remove(p.getName(),"done"); }
+        });
+    }
+
+    private String refillEventMode="";
+    @EventHandler public void refillEvent(org.bukkit.event.inventory.InventoryClickEvent event) {
+        if (!event.getWhoClicked().getName().equals("Refill51")) return;
+        switch(refillEventMode) {
+            case "cancel-event" -> event.setCancelled(true);
+            case "hand-event" -> ((Player)event.getWhoClicked()).getInventory().setItemInMainHand(new ItemStack(Material.DIAMOND_SWORD));
+            case "source-event" -> event.getInventory().setItem(event.getSlot(),new ItemStack(Material.DIRT,3));
+        }
+    }
+
+    private CompletableFuture<Void> refillIntegrity() {
+        return manager.spawnAsync(Bukkit.getConsoleSender(),"Refill51",new Location(Bukkit.getWorlds().getFirst(),650,-60,650),-1).thenCompose(p->{
+            p.setGravity(false); p.setInvulnerable(true); p.setCanPickupItems(false);
+            var block=p.getLocation().clone().add(2,0,0).getBlock(); var original=block.getState(); block.setType(Material.CHEST);
+            var inv=((org.bukkit.block.Chest)block.getState()).getBlockInventory();
+            var rm=Main.getInjector().getInstance(FakeplayerReplenishManager.class);
+            CompletableFuture<Void> chain=CompletableFuture.completedFuture(null);
+            for(var mode:List.of("normal","hand-change","slot-change","window-change","disabled","cancel-event","hand-event","source-event","quit")) {
+                chain=chain.thenCompose(v->{
+                    p.closeInventory(); p.getInventory().clear(); p.getInventory().setHeldItemSlot(0);
+                    inv.clear(); inv.setItem(0,new ItemStack(Material.STONE,64)); inv.setItem(1,new ItemStack(Material.STONE,32));
+                    rm.setReplenish(p,true); refillEventMode=mode;
+                    rm.replenishFromNearbyChest(p,org.bukkit.inventory.EquipmentSlot.HAND,new ItemStack(Material.STONE));
+                    var view=p.getOpenInventory();
+                    check(view.getTopInventory().equals(inv),"refill fixture opens intended chest: "+mode);
+                    rm.replenishFromNearbyChest(p,org.bukkit.inventory.EquipmentSlot.OFF_HAND,new ItemStack(Material.STONE));
+                    check(p.getOpenInventory()==view,"duplicate refill does not replace window: "+mode);
+                    return later(5,()->{
+                        switch(mode) {
+                            case "hand-change" -> p.getInventory().setItemInMainHand(new ItemStack(Material.DIAMOND_SWORD));
+                            case "slot-change" -> p.getInventory().setHeldItemSlot(2);
+                            case "window-change" -> p.openInventory(Bukkit.createInventory(null,27));
+                            case "disabled" -> rm.setReplenish(p,false);
+                            case "quit" -> manager.remove(p.getName(),"pending refill quit");
+                        }
+                    }).thenCompose(v2->later(22,()->{
+                        var hand=p.getInventory().getItemInMainHand();
+                        if(mode.equals("normal")) {
+                            check(hand.getType()==Material.STONE && hand.getAmount()==32 && inv.getItem(1)==null && inv.getItem(0).getAmount()==64,"normal refill moves exactly one source stack");
+                        } else if(mode.equals("hand-change") || mode.equals("hand-event")) {
+                            check(hand.getType()==Material.DIAMOND_SWORD && inv.getItem(1).getAmount()==32,"replacement hand protected: "+mode);
+                        } else if(mode.equals("source-event")) {
+                            check(hand.isEmpty() && inv.getItem(1).getType()==Material.DIRT && inv.getItem(1).getAmount()==3,"event-modified source is not copied or deleted");
+                        } else {
+                            check(hand.isEmpty() && inv.getItem(1).getAmount()==32,"cancelled/stale refill leaves items intact: "+mode);
+                            if(mode.equals("window-change")) check(p.getOpenInventory().getTopInventory().getType()==org.bukkit.event.inventory.InventoryType.CHEST && !p.getOpenInventory().getTopInventory().equals(inv),"replacement window remains open");
+                        }
+                        check(p.getInventory().getItemInOffHand().isEmpty(),"duplicate refill cannot also fill other hand: "+mode);
+                    }));
+                });
+            }
+            return chain.whenComplete((v,error)->{refillEventMode=""; rm.setReplenish(p,false); manager.remove(p.getName(),"done");original.update(true,false);});
+        });
+    }
+
+    private static final class FaultTicker implements ActionTicker {
+        private final ActionSetting setting=ActionSetting.interval(2);
+        int attempts,stops,ticks; boolean failing=true;
+        public ActionSetting getSetting(){return setting;}
+        public boolean tick(){
+            ticks++;
+            if(setting.wait>0){setting.wait--;return false;}
+            attempts++; setting.wait=setting.interval;
+            if(failing) throw new IllegalStateException("fixture action failure");
+            return false;
+        }
+        public void inactiveTick(){} public void stop(){stops++;}
+    }
+    @SuppressWarnings("unchecked")
+    private Map<UUID,Map<ActionType,ActionTicker>> actionMap(ActionManager am) {
+        try {var field=ActionManager.class.getDeclaredField("managers");field.setAccessible(true);return (Map<UUID,Map<ActionType,ActionTicker>>)field.get(am);}
+        catch(ReflectiveOperationException e){throw new RuntimeException(e);}
+    }
+    private CompletableFuture<Void> faultIntegrity() {
+        return spawn("Fault51").thenCompose(p->{
+            var am=Main.getInjector().getInstance(ActionManager.class);
+            var broken=new FaultTicker(); var healthy=new FaultTicker(); healthy.failing=false;
+            actionMap(am).put(p.getUniqueId(),new HashMap<>(Map.of(ActionType.ATTACK,broken,ActionType.JUMP,healthy)));
+            return later(16,()->{
+                check(broken.attempts==3 && broken.stops==1,"repeated action failure stops after three attempts despite cooldown ticks");
+                check(!am.hasActiveAction(p,ActionType.ATTACK) && healthy.attempts>=4,"failed action isolated; other actions continue");
+                var dm=Main.getInjector().getInstance(io.github.hello09x.fakeplayer.core.manager.diagnostic.DiagnosticManager.class);
+                check(dm.find(Bukkit.getConsoleSender(),p.getName()).events.stream().anyMatch(e->e.contains("ACTION_STOPPED")),"action failure reason visible in diagnostics");
+                check(!am.getActions(p).containsKey(ActionType.ATTACK),"stopped failure omitted from resident action snapshots");
+                am.setAction(p,ActionType.JUMP,ActionSetting.continuous());
+                check(healthy.stops==1,"replacing action cleans up previous ticker once");
+                am.setAction(p,ActionType.ATTACK,ActionSetting.once());
+            }).thenCompose(v->later(5,()->{
+                check(am.hasActiveAction(p,ActionType.JUMP),"manual action command can start fresh ticker after failure");
+                am.stop(p); check(am.getActiveActions(p).isEmpty(),"stop immediately clears all action registrations");
+                manager.remove(p.getName(),"done");
+            }));
+        });
+    }
+
     public boolean onCommand(CommandSender sender, Command command, String label, String[] args) {
         if (!sender.isOp()) return true;
         results.clear();
         String phase = args.length == 0 ? "state" : args[0];
         try {
             CompletableFuture<Void> future = switch (phase) {
+                case "integrity-resident-toggle" -> residentToggleIntegrity(); case "integrity-case" -> caseIntegrity(); case "integrity-nearest" -> nearestIntegrity(); case "integrity-refill" -> refillIntegrity(); case "integrity-action" -> faultIntegrity();
                 case "state" -> state(); case "pending" -> pending(); case "resident" -> resident();
                 case "restored" -> restored(); case "death" -> death(); case "actions" -> actions();
                 case "management" -> withConfig(Map.of("detect-ip",false),this::management); case "conflicts" -> conflicts(); case "budgets" -> budgets(); case "closing" -> closing(); case "race" -> race(); case "skin-configured" -> skinConfigured(); case "journal-restored" -> journalRestored(); case "offline-management" -> offlineManagement();

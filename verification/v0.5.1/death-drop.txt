@@ -1,0 +1,5 @@
+PASS kick-on-dead removes after death
+PASS actual death drops match switch: 7
+PASS vanilla death loses inventory
+PASS vanilla death loses XP
+PASS phase death

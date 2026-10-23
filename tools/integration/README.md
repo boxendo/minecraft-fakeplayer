@@ -52,3 +52,20 @@ RCON 只能验证服务端状态，不能证明真实玩家客户端渲染、背
 同时在测试插件的数据目录创建 `spawn-conflict.flag` 和 `deny-retry.flag`。辅助插件会先占用 conflictbot 名字，并拒绝 retrybot 的登录。该阶段验证冲突解除、重试耗尽与手动恢复后自行清理测试记录。
 
 所有发布验证必须重新运行 `tools/verify-package.py` 并将报告绑定到实际测试 JAR 的 SHA-256；不要覆盖 0.4.1 的验证目录。
+
+
+## 0.5.1 数据保护回归
+
+- `integrity-case`：标准英文名称三种大小写重登复用 UUID，保留完整物品/经验状态；旧冲突保持独立档案，模糊拼写被拒绝，新重复档案不能插入。
+- `integrity-nearest`：顺序颠倒、自己、已移除实体及空候选集合。
+- `integrity-refill`：正常补货、重复请求、更换手持格/物品/窗口、关闭补货、事件取消、事件修改源物品/手持物品及退出期间的补货。
+- `integrity-action`：注入带冷却的抛错动作，检查三次失败后停止、其他动作继续、诊断、驻留快照排除及替换动作清理。
+- `integrity-resident-toggle`：快速开启/取消驻留，最终关服文件不得残留 Toggle51。
+
+`integrity-case` 需要先在停止的隔离测试服 `data.db` 的 `fake_player_profile` 表中准备 `LegacyCase51`、`legacycase51` 两行，UUID 不同。这模拟旧版本存档；只在测试库中暂时删除 `fake_player_profile_case_insert` 触发器插入，启动插件会重新建立保护。绝不能对正式服做此测试准备。
+
+复用旧测试服运行 `offline-management` 时，旧测试曾以不同 UUID 恢复过 conflictbot，可能留下与档案不一致的名称缓存。停服后先备份测试服 `usercache.json` 并移除 conflictbot、retrybot、parkedbot 的缓存条目，再准备驻留记录与 flag；这仅是隔离测试清理步骤。
+
+`tools/tests/YamlSaveQueueTest.java` 是无需服务器的写盘队列故障注入测试。用与辅助插件相同的编译 classpath 编译后，运行 `io.github.hello09x.fakeplayer.core.util.YamlSaveQueueTest`。覆盖深层快照隔离、待写合并、自动重试、新值优先、关服刷新和失败报告。
+
+诊断写盘测试等待当前尝试时间戳落盘，不使用上一次测试遗留的文件作为通过证据。每个发布 JAR 都应重新运行构建类核对，并保存真实关服/重启阶段的报告。

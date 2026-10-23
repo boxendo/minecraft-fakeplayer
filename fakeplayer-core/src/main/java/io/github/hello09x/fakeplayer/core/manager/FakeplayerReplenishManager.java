@@ -28,6 +28,12 @@ import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
 import java.util.Optional;
+import java.util.HashMap;
+import java.util.Map;
+import java.util.UUID;
+import org.bukkit.inventory.InventoryView;
+import org.bukkit.scheduler.BukkitTask;
+import org.bukkit.event.player.PlayerQuitEvent;
 
 /**
  * @author tanyaofei
@@ -37,6 +43,38 @@ import java.util.Optional;
 public class FakeplayerReplenishManager implements Listener {
 
     private final FakeplayerManager manager;
+    private final Map<UUID, PendingRefill> pending = new HashMap<>();
+
+    private static final class PendingRefill {
+        InventoryView view;
+        BukkitTask task;
+    }
+
+    private boolean eligible(Player player) {
+        return player.isOnline() && !player.isDead() && manager.get(player.getName()) == player && isReplenish(player);
+    }
+
+    private boolean mayUseChest(Player player) {
+        return Optional.ofNullable(manager.getCreator(player))
+                .filter(creator -> creator.hasPermission(Permission.replenishFromChest)).isPresent();
+    }
+
+    private void cancel(Player player) {
+        var refill = pending.remove(player.getUniqueId());
+        if (refill == null) return;
+        if (refill.task != null) refill.task.cancel();
+        if (refill.view != null && player.getOpenInventory() == refill.view) player.closeInventory();
+    }
+
+    @EventHandler public void onQuit(PlayerQuitEvent event) { cancel(event.getPlayer()); }
+
+    @EventHandler public void onClose(InventoryCloseEvent event) {
+        var refill = pending.get(event.getPlayer().getUniqueId());
+        if (refill != null && refill.view == event.getView()) {
+            pending.remove(event.getPlayer().getUniqueId(), refill);
+            if (refill.task != null) refill.task.cancel();
+        }
+    }
 
     @Inject
     public FakeplayerReplenishManager(FakeplayerManager manager) {
@@ -52,6 +90,7 @@ public class FakeplayerReplenishManager implements Listener {
     public void setReplenish(@NotNull Player target, boolean replenish) {
         if (!replenish) {
             target.removeMetadata(MetadataKeys.REPLENISH, Main.getInstance());
+            cancel(target);
         } else {
             target.setMetadata(MetadataKeys.REPLENISH, new FixedMetadataValue(Main.getInstance(), true));
         }
@@ -157,7 +196,7 @@ public class FakeplayerReplenishManager implements Listener {
         item = null;    // 以防下面的代码用到了这个值
 
         Bukkit.getScheduler().runTaskLater(Main.getInstance(), () -> {
-            if (!target.isOnline()) {
+            if (!eligible(target)) {
                 return;
             }
             var held = target.getInventory().getItem(slot);
@@ -206,55 +245,64 @@ public class FakeplayerReplenishManager implements Listener {
      * @param item   需要补货的物品
      */
     public void replenishFromNearbyChest(@NotNull Player target, @NotNull EquipmentSlot slot, @NotNull ItemStack item) {
-        var blocks = BlockUtils.getNearbyBlocks(target.getLocation(), 4, Material.CHEST);
-        for (var block : blocks) {
-            var openEvent = new PlayerInteractEvent(
-                    target,
-                    Action.RIGHT_CLICK_BLOCK,
-                    target.getInventory().getItemInOffHand(),
-                    block,
-                    BlockFace.NORTH
-            );
-            if (!openEvent.callEvent()) {
-                // 无法打开箱子
-                continue;
-            }
-
-            if (target.openInventory(((Chest) block.getState()).getBlockInventory()) == null) {
-                continue;
-            }
-
-            Bukkit.getScheduler().runTaskLater(Main.getInstance(), () -> {
-                var view = target.getOpenInventory();
-                var inv = view.getTopInventory();
-                if (inv.getType() != InventoryType.CHEST) {
-                    // 被其他插件取消了, 变成打开自己的背包了
-                    return;
-                }
-                for (int i = inv.getSize() - 1; i >= 0; i--) {
-                    var replacement = inv.getItem(i);
-                    if (replacement != null && replacement.isSimilar(item)) {
-                        var event = new InventoryClickEvent(
-                                view,
-                                InventoryType.SlotType.CONTAINER,
-                                i,
-                                ClickType.SHIFT_LEFT,
-                                InventoryAction.MOVE_TO_OTHER_INVENTORY
-                        );
-                        if (!event.callEvent()) {
-                            // 无法操作箱子
+        if (!eligible(target) || !mayUseChest(target) || !target.getInventory().getItem(slot).isEmpty()) return;
+        var refill = new PendingRefill();
+        if (pending.putIfAbsent(target.getUniqueId(), refill) != null) return;
+        var required = item.clone();
+        int selected = target.getInventory().getHeldItemSlot();
+        try {
+            var blocks = BlockUtils.getNearbyBlocks(target.getLocation(), 4, Material.CHEST);
+            for (var block : blocks) {
+                var openEvent = new PlayerInteractEvent(target, Action.RIGHT_CLICK_BLOCK,
+                        target.getInventory().getItemInOffHand(), block, BlockFace.NORTH);
+                if (!openEvent.callEvent() || !(block.getState() instanceof Chest chest)) continue;
+                if (!eligible(target) || !mayUseChest(target) || pending.get(target.getUniqueId()) != refill) return;
+                var inventory = chest.getBlockInventory();
+                var view = target.openInventory(inventory);
+                if (view == null) continue;
+                refill.view = view;
+                // Opening an inventory calls other plugins synchronously; they may disable replenishment.
+                if (pending.get(target.getUniqueId()) != refill) return;
+                refill.task = Bukkit.getScheduler().runTaskLater(Main.getInstance(), () -> {
+                    try {
+                        if (!validRefill(target, slot, selected, refill, block, inventory)) return;
+                        for (int i = inventory.getSize() - 1; i >= 0; i--) {
+                            var replacement = inventory.getItem(i);
+                            if (replacement == null || !replacement.isSimilar(required)) continue;
+                            var expected = replacement.clone();
+                            var event = new InventoryClickEvent(view, InventoryType.SlotType.CONTAINER,
+                                    i, ClickType.SHIFT_LEFT, InventoryAction.MOVE_TO_OTHER_INVENTORY);
+                            if (!event.callEvent()) break;
+                            // Event listeners may change either hand, slot, container, permissions or online state.
+                            if (!validRefill(target, slot, selected, refill, block, inventory)
+                                    || !expected.equals(inventory.getItem(i))) break;
+                            target.getInventory().setItem(slot, expected);
+                            inventory.setItem(i, null);
                             break;
                         }
-
-                        target.getInventory().setItem(slot, replacement);
-                        inv.setItem(i, null);
-                        break;
+                    } finally {
+                        pending.remove(target.getUniqueId(), refill);
+                        if (target.getOpenInventory() == view) target.closeInventory(InventoryCloseEvent.Reason.PLAYER);
                     }
-                }
-                target.closeInventory(InventoryCloseEvent.Reason.PLAYER);
-            }, 20);
-            return;
+                }, 20);
+                return;
+            }
+        } finally {
+            if (refill.task == null) {
+                pending.remove(target.getUniqueId(), refill);
+                if (refill.view != null && target.getOpenInventory() == refill.view) target.closeInventory();
+            }
         }
+    }
+
+    private boolean validRefill(Player target, EquipmentSlot slot, int selected, PendingRefill refill,
+                                org.bukkit.block.Block block, org.bukkit.inventory.Inventory inventory) {
+        return pending.get(target.getUniqueId()) == refill && eligible(target) && mayUseChest(target)
+                && target.getOpenInventory() == refill.view && target.getInventory().getItem(slot).isEmpty()
+                && (slot != EquipmentSlot.HAND || target.getInventory().getHeldItemSlot() == selected)
+                && target.getWorld().equals(block.getWorld())
+                && target.getLocation().distanceSquared(block.getLocation().add(0.5, 0.5, 0.5)) <= 64
+                && block.getState() instanceof Chest chest && inventory.equals(chest.getBlockInventory());
     }
 
     /**

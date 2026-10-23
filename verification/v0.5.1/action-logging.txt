@@ -1,0 +1,1 @@
+PASS three failed action attempts emit one stack trace and one stop summary

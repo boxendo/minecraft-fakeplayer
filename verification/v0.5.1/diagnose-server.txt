@@ -1,0 +1,29 @@
+Permissions: spawn=true; resident=true; restore=true; forget=true; manage-others=true
+Fakeplayer 0.5.1-paper26.3 | 26.3-205-a90108f (MC: 26.3) | Java 26.0.2.1
+Queue=0; active=0; target chunk loads=0
+Budget: spawn/tick=1; concurrent=4; chunk requests/tick=1; concurrent loads=2
+World world: 1 / unlimited (online + reserved)
+World world_nether: 0 / unlimited (online + reserved)
+World world_the_end: 0 / unlimited (online + reserved)
+persistent-data=true; drop-inventory-on-quiting=false; keep-inventory-on-death=true; prevent-kicking=ON_SPAWNING
+Permissions: manage-others=true; bypass-limits=true
+PRE_LOGIN listeners: FakeplayerVerification/NORMAL
+LOGIN listeners: fakeplayer/LOWEST, FakeplayerVerification/NORMAL
+TELEPORT listeners: FakeplayerVerification/NORMAL, fakeplayer/HIGHEST, fakeplayer/MONITOR
+JOIN listeners (inventory sync may run later): fakeplayer/LOWEST, fakeplayer/MONITOR
+QUIT listeners: fakeplayer/LOWEST, fakeplayer/LOW, fakeplayer/NORMAL, fakeplayer/MONITOR
+KICK listeners: fakeplayer/LOWEST, FakeplayerVerification/NORMAL, fakeplayer/MONITOR
+INVENTORY listeners:
+CommandAPI: 12.1.0
+事件结果是已观察证据；监听列表和已安装插件仅是排查线索，不能据此认定责任插件。
+你可查看的最近操作：
+respawnbot | 已离线 | 已退出
+deathbot | 已离线 | 已退出
+queueprobe | 已离线 | 已退出
+netprobe | 已离线 | 已退出
+actionbot | 已离线 | 已退出
+slowbot | 已取消 | 生成已取消
+denybot | 失败 | CommandException: <red><white>denybot</white> 創建失敗: test denial
+statebot | 已离线 | 已退出
+recipient | 已离线 | 已退出
+worldcap3 | 已离线 | 已退出

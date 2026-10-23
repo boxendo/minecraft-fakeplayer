@@ -5,7 +5,7 @@ import com.google.inject.Singleton;
 import io.github.hello09x.fakeplayer.core.Main;
 import io.github.hello09x.fakeplayer.core.config.FakeplayerConfig;
 import io.github.hello09x.fakeplayer.core.entity.Fakeplayer;
-import io.github.hello09x.fakeplayer.core.util.AtomicYamlFiles;
+import io.github.hello09x.fakeplayer.core.util.YamlSaveQueue;
 import io.github.hello09x.fakeplayer.core.util.FakeplayerAccess;
 import org.bukkit.Bukkit;
 import org.bukkit.command.CommandSender;
@@ -40,11 +40,13 @@ public class DiagnosticManager {
 
     private final Map<UUID, Entry> entries = new LinkedHashMap<>();
     private final FakeplayerConfig config;
+    private final YamlSaveQueue writer;
     private final File file = new File(Main.getInstance().getDataFolder(), "diagnostics.yml");
     private boolean readable = true, dirty;
 
     @Inject
-    public DiagnosticManager(FakeplayerConfig config) {
+    public DiagnosticManager(FakeplayerConfig config, YamlSaveQueue writer) {
+        this.writer = writer;
         this.config = config;
         this.load();
         Bukkit.getScheduler().runTaskTimer(Main.getInstance(), this::flush, 200, 200);
@@ -128,6 +130,14 @@ public class DiagnosticManager {
         dirty=true;
     }
 
+    public synchronized void note(UUID uuid, String type, String outcome) {
+        var entry = entries.get(uuid);
+        if (entry == null) return;
+        entry.events.addLast(Instant.now() + " " + type + ": " + clean(outcome));
+        while (entry.events.size() > 6) entry.events.removeFirst();
+        dirty = true;
+    }
+
     public static String listeners(HandlerList handlers) {
         return Arrays.stream(handlers.getRegisteredListeners())
                 .map(listener -> listener.getPlugin().getName()+"/"+listener.getPriority())
@@ -198,8 +208,7 @@ public class DiagnosticManager {
             row.put("last-restore",e.lastRestore); row.put("failed-stage",e.failedStage); row.put("last-error",e.lastError);
             row.put("events",new ArrayList<>(e.events)); rows.add(row);
         }
-        var yaml=new YamlConfiguration(); yaml.set("players",rows);
-        try { AtomicYamlFiles.write(yaml,file.toPath()); dirty=false; }
-        catch (Exception error) { Main.getInstance().getLogger().warning("Failed to save diagnostics.yml: "+error); }
+        writer.submit(file.toPath(), Map.of("players", rows));
+        dirty=false;
     }
 }
