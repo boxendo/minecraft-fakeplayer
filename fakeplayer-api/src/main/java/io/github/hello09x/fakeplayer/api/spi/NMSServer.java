@@ -15,5 +15,6 @@ public interface NMSServer {
      */
     @NotNull NMSServerPlayer newPlayer(@NotNull UUID uuid, @NotNull String name);
 
-
+    /** Native player storage root; null when an adapter cannot expose it. */
+    default @org.jetbrains.annotations.Nullable java.io.File getPlayerDataFolder() { return null; }
 }

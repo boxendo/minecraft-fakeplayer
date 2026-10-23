@@ -22,7 +22,11 @@ public class FakeplayerList {
      * @param player 假人
      */
     public void add(@NotNull Fakeplayer player) {
-        this.playersByName.put(player.getName(), player);
+        if (this.playersByName.containsKey(player.getName().toLowerCase(Locale.ROOT))
+                || this.playersByUUID.containsKey(player.getUUID())) {
+            throw new IllegalStateException("Fake player is already spawning or online: " + player.getName());
+        }
+        this.playersByName.put(player.getName().toLowerCase(Locale.ROOT), player);
         this.playersByUUID.put(player.getUUID(), player);
         this.playersByCreator.computeIfAbsent(player.getCreator().getName(), key -> new LinkedList<>()).add(player);
     }
@@ -34,7 +38,7 @@ public class FakeplayerList {
      * @return 假人
      */
     public @Nullable Fakeplayer getByName(@NotNull String name) {
-        return Optional.ofNullable(this.playersByName.get(name)).map(this::checkOnline).orElse(null);
+        return this.playersByName.get(name.toLowerCase(Locale.ROOT));
     }
 
     /**
@@ -44,7 +48,7 @@ public class FakeplayerList {
      * @return 假人
      */
     public @Nullable Fakeplayer getByUUID(@NotNull UUID uuid) {
-        return Optional.ofNullable(this.playersByUUID.get(uuid)).map(this::checkOnline).orElse(null);
+        return this.playersByUUID.get(uuid);
     }
 
     /**
@@ -63,8 +67,8 @@ public class FakeplayerList {
      * @param player 假人
      */
     public void remove(@NotNull Fakeplayer player) {
-        this.playersByName.remove(player.getName());
-        this.playersByUUID.remove(player.getUUID());
+        this.playersByName.remove(player.getName().toLowerCase(Locale.ROOT), player);
+        this.playersByUUID.remove(player.getUUID(), player);
         Optional.ofNullable(this.playersByCreator.get(player.getCreator().getName())).map(players -> players.remove(player));
     }
 
@@ -103,21 +107,6 @@ public class FakeplayerList {
      */
     public @NotNull @Unmodifiable List<Fakeplayer> getAll() {
         return List.copyOf(this.playersByUUID.values());
-    }
-
-    /**
-     * 检测假人是否在线, 如果不在线了则移除并返回 {@code null}
-     *
-     * @param player 假人
-     * @return 假人
-     */
-    private @Nullable Fakeplayer checkOnline(@NotNull Fakeplayer player) {
-        if (!player.isOnline()) {
-            this.remove(player);
-            return null;
-        }
-
-        return player;
     }
 
     public @NotNull Stream<Fakeplayer> stream() {

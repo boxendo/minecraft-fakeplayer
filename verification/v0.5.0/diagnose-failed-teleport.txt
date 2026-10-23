@@ -1,0 +1,15 @@
+tpdenybot | 61c0d6bb-fd63-4499-a58c-be8428a386ed | 失败
+Owner: CONSOLE | null
+Operation: spawn; IllegalStateException: Could not place fake player at spawn location: tpdenybot
+Attempt: 2026-10-23 02:50:27 +08:00
+Save: 2026-10-23 02:50:27 +08:00; restore: 尚无记录
+Last failure [TELEPORT]: IllegalStateException: Could not place fake player at spawn location: tpdenybot
+Events (listener plugins are leads, not attribution):
+2026-10-22T18:45:17.113805Z TELEPORT: cancelled=true; cause=PLUGIN; 传送已被取消，监听插件仅是排查线索; 监听插件=FakeplayerVerification/NORMAL, fakeplayer/HIGHEST, fakeplayer/MONITOR
+2026-10-22T18:45:17.114185Z KICK: cancelled=false; [fakeplayer] spawn failed; 监听插件=fakeplayer/LOWEST, FakeplayerVerification/NORMAL, fakeplayer/MONITOR
+2026-10-22T18:50:27.568754Z PRE_LOGIN: ALLOWED: ; 监听插件=FakeplayerVerification/NORMAL
+2026-10-22T18:50:27.569938Z LOGIN: ALLOWED: ; prevent-kicking=ON_SPAWNING; 监听插件=fakeplayer/LOWEST, FakeplayerVerification/NORMAL
+2026-10-22T18:50:27.577369Z TELEPORT: cancelled=true; cause=PLUGIN; 传送已被取消，监听插件仅是排查线索; 监听插件=FakeplayerVerification/NORMAL, fakeplayer/HIGHEST, fakeplayer/MONITOR
+2026-10-22T18:50:27.577723Z KICK: cancelled=false; [fakeplayer] spawn failed; 监听插件=fakeplayer/LOWEST, FakeplayerVerification/NORMAL, fakeplayer/MONITOR
+Native playerdata: /Users/dream/deepseek-harness/Codex/minecraft-fakeplayer/.test-server/./world/players/data/61c0d6bb-fd63-4499-a58c-be8428a386ed.dat; exists=true; modified=2026-10-23 02:50:27 +08:00
+事件结果是已观察证据；监听列表和已安装插件仅是排查线索，不能据此认定责任插件。

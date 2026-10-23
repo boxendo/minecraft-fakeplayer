@@ -1,0 +1,3 @@
+PASS unavailable world record survives autosave
+PASS resident retries after world loads
+PASS phase unavailable

@@ -1,0 +1,3 @@
+PASS online-skin enabled spawn completes in 0.066s
+PASS default wolverine applied after connection setup
+netprobe has the following entity data: [{ambient: 1b, id: "minecraft:regeneration", duration: -1, amplifier: 4b, show_icon...

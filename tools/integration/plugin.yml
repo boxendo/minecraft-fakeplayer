@@ -1,0 +1,8 @@
+name: FakeplayerVerification
+version: '1'
+main: verification.VerificationPlugin
+api-version: '26.3'
+depend: [fakeplayer]
+commands:
+  fpverify:
+    permission: op

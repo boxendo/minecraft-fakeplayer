@@ -1,0 +1,11 @@
+PASS kick-on-dead false leaves dead fake online
+PASS explicit respawn revives fake
+PASS inventory survives
+PASS selected hotbar survives
+PASS main hand survives
+PASS offhand survives
+PASS armor survives
+PASS ender chest survives
+PASS XP survives: 123
+PASS respawned fake still ticks and jumps
+PASS phase respawn

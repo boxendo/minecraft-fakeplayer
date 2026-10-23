@@ -1,0 +1,14 @@
+residentbot | 70949d72-069b-43b0-94f6-7b951a63a030 | 在线
+Owner: ownerbot | 8b7e21bd-707e-4cba-9693-10084319402f
+Operation: restore; 生成完成
+Attempt: 2026-10-23 02:55:03 +08:00
+Save: 2026-10-23 02:55:05 +08:00; restore: 2026-10-23 02:55:04 +08:00
+Events (listener plugins are leads, not attribution):
+2026-10-22T18:50:41.267066Z PRE_LOGIN: ALLOWED: ; 监听插件=FakeplayerVerification/NORMAL
+2026-10-22T18:50:41.318408Z LOGIN: ALLOWED: ; prevent-kicking=ON_SPAWNING; 监听插件=fakeplayer/LOWEST, FakeplayerVerification/NORMAL
+2026-10-22T18:52:40.683978Z PRE_LOGIN: ALLOWED: ; 监听插件=FakeplayerVerification/NORMAL
+2026-10-22T18:52:40.691996Z LOGIN: ALLOWED: ; prevent-kicking=ON_SPAWNING; 监听插件=fakeplayer/LOWEST, FakeplayerVerification/NORMAL
+2026-10-22T18:55:03.806583Z PRE_LOGIN: ALLOWED: ; 监听插件=FakeplayerVerification/NORMAL
+2026-10-22T18:55:03.864592Z LOGIN: ALLOWED: ; prevent-kicking=ON_SPAWNING; 监听插件=fakeplayer/LOWEST, FakeplayerVerification/NORMAL
+Native playerdata: /Users/dream/deepseek-harness/Codex/minecraft-fakeplayer/.test-server/./world/players/data/70949d72-069b-43b0-94f6-7b951a63a030.dat; exists=true; modified=2026-10-23 02:55:05 +08:00
+事件结果是已观察证据；监听列表和已安装插件仅是排查线索，不能据此认定责任插件。

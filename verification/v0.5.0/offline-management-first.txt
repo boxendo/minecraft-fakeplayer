@@ -1,0 +1,13 @@
+PASS conflict fixture occupies name with different UUID
+PASS saved record reports name conflict
+PASS manual restore cannot kick occupying player
+PASS manual retry restores after name becomes free
+PASS failed resident remains with first attempt recorded
+PASS automatic retry increments real failure attempt
+PASS three real failures require manual retry without deleting record
+PASS manual retry resets exhausted attempts after conflict is resolved
+PASS unloaded world preserves record without consuming attempts
+PASS manual retry reports unavailable world without consuming attempts
+PASS unavailable world record survives autosave
+PASS resident retries after world loads
+PASS phase offline-management

@@ -18,6 +18,7 @@ import io.github.hello09x.fakeplayer.core.manager.naming.NameManager;
 import io.github.hello09x.fakeplayer.core.repository.model.Feature;
 import io.github.hello09x.fakeplayer.core.util.AddressUtils;
 import io.github.hello09x.fakeplayer.core.util.Commands;
+import io.github.hello09x.fakeplayer.core.util.ServerTasks;
 import net.kyori.adventure.text.Component;
 import org.bukkit.Bukkit;
 import org.bukkit.Location;
@@ -95,6 +96,9 @@ public class FakeplayerManager {
         this.checkLimit(creator);
 
         var sn = name == null ? nameManager.getRegularName(creator) : nameManager.getSpecifiedName(name);
+        if (this.playerList.getByName(sn.name()) != null) {
+            throw new CommandException(translatable("fakeplayer.spawn.error.name.online", text(sn.name())));
+        }
         log.info("UUID of fake player %s is %s".formatted(sn.name(), sn.uuid()));
 
         var fp = new Fakeplayer(
@@ -107,9 +111,7 @@ public class FakeplayerManager {
         var target = fp.getPlayer();    // 即使出现异常也不需要处理这个玩家, 最终会被 GC 掉
         this.playerList.add(fp);
 
-        this.dispatchCommandsEarly(fp, this.config.getPreSpawnCommands());
-        return CompletableFuture
-                .supplyAsync(() -> {
+        return ServerTasks.call(() -> {
                     var configs = featureManager.getFeatures(creator);
                     return new SpawnOption(
                             spawnAt,
@@ -124,8 +126,21 @@ public class FakeplayerManager {
                             configs.get(Feature.resident).asBoolean()
                     );
                 })
-                .thenComposeAsync(fp::spawnAsync)
-                .thenApply(ignored -> target);
+                .thenCompose(fp::spawnAsync)
+                .handle((ignored, error) -> ServerTasks.call(() -> {
+                    if (error != null) {
+                        fp.cancelSpawn();
+                        if (target.isOnline()) {
+                            this.remove(fp.getName(), "spawn failed");
+                        }
+                        if (this.playerList.getByUUID(fp.getUUID()) == fp) {
+                            this.playerList.remove(fp);
+                            this.nameManager.unregister(sn);
+                        }
+                        throw new java.util.concurrent.CompletionException(error);
+                    }
+                    return target;
+                })).thenCompose(result -> result);
     }
 
     /**
@@ -208,9 +223,16 @@ public class FakeplayerManager {
      * @return 是否移除成功
      */
     public boolean remove(@NotNull String name, @Nullable Component reason) {
-        var target = this.get(name);
-        if (target == null) {
+        var fake = this.playerList.getByName(name);
+        if (fake == null) {
             return false;
+        }
+        this.residentManager.forgetExplicit(fake.getUUID());
+        fake.cancelSpawn();
+        var target = fake.getPlayer();
+        if (!target.isOnline()) {
+            this.cleanup(target);
+            return true;
         }
 
         target.kick(textOfChildren(
@@ -218,6 +240,16 @@ public class FakeplayerManager {
                 reason == null ? text("removed") : reason
         ));
         return true;
+    }
+
+    /** Finish the normal respawn transaction so XP/death penalties are settled before saving. */
+    public void removeAfterDeath(@NotNull Player player) {
+        this.nms.fromPlayer(player).respawn();
+        var fake = this.playerList.getByUUID(player.getUniqueId());
+        if (fake != null) {
+            fake.setRetainInventoryOnQuit(this.config.isKeepInventoryOnDeath());
+        }
+        this.remove(player.getName(), "died");
     }
 
     /**
@@ -228,7 +260,7 @@ public class FakeplayerManager {
     public int removeAll(@Nullable String reason) {
         var targets = getAll();
         for (var target : targets) {
-            target.kick(text(REMOVAL_REASON_PREFIX + (reason == null ? "removed" : reason)));
+            this.remove(target.getName(), reason);
         }
         return targets.size();
     }
@@ -242,7 +274,7 @@ public class FakeplayerManager {
     public int removeAllExceptResidents(@Nullable String reason) {
         var targets = this.getAll().stream().filter(p -> !this.residentManager.isResident(p)).toList();
         for (var target : targets) {
-            target.kick(text(REMOVAL_REASON_PREFIX + (reason == null ? "removed" : reason)));
+            this.remove(target.getName(), reason);
         }
         return targets.size();
     }
@@ -272,20 +304,30 @@ public class FakeplayerManager {
      * @param target 假人
      */
     public void cleanup(@NotNull Player target) {
-        var fakeplayer = this.playerList.removeByUUID(target.getUniqueId());
-        if (fakeplayer == null) {
+        var fakeplayer = this.playerList.getByUUID(target.getUniqueId());
+        if (fakeplayer == null || fakeplayer.getPlayer() != target) {
             return;
         }
+        this.playerList.remove(fakeplayer);
         this.nameManager.unregister(fakeplayer.getSequenceName());
         // 被移除 / 死亡退出时取消驻留，避免重启后又冒出来
         this.residentManager.forget(target.getUniqueId());
-        if (config.isDropInventoryOnQuiting()) {
+        if (config.isDropInventoryOnQuiting() && !fakeplayer.isRetainInventoryOnQuit()
+                && !(config.isKeepInventoryOnDeath() && target.isDead())) {
             this.nms.createAction(
                     fakeplayer.getPlayer(),
                     ActionType.DROP_INVENTORY,
                     ActionSetting.once()
             ).tick();
         }
+        if (config.isPersistData()) {
+            try {
+                target.saveData();
+                Main.getInjector().getInstance(io.github.hello09x.fakeplayer.core.manager.diagnostic.DiagnosticManager.class).saved(target.getUniqueId());
+            } catch (Exception error) { log.warning("Failed to save fake player " + target.getName() + ": " + error); }
+        }
+        var diagnostic = Main.getInjector().getInstance(io.github.hello09x.fakeplayer.core.manager.diagnostic.DiagnosticManager.class);
+        diagnostic.offline(target.getUniqueId());
     }
 
     /**
@@ -306,7 +348,7 @@ public class FakeplayerManager {
      * @return 假人
      */
     public @NotNull List<Player> getAll(@NotNull CommandSender creator, @Nullable Predicate<Player> predicate) {
-        var stream = this.playerList.getByCreator(creator.getName()).stream().map(Fakeplayer::getPlayer);
+        var stream = this.playerList.getAll().stream().filter(fake -> fake.isCreatedBy(creator)).map(Fakeplayer::getPlayer);
         if (predicate != null) {
             stream = stream.filter(predicate);
         }
@@ -357,7 +399,7 @@ public class FakeplayerManager {
      * @return 创建了多少个假人
      */
     public int countByCreator(@NotNull CommandSender creator) {
-        return this.playerList.countByCreator(creator.getName());
+        return (int) this.playerList.getAll().stream().filter(fake -> fake.isCreatedBy(creator)).count();
     }
 
     /**
@@ -487,7 +529,7 @@ public class FakeplayerManager {
      * @param creator 创建者
      */
     private void checkLimit(@NotNull CommandSender creator) throws CommandException {
-        if (creator.isOp()) {
+        if (creator.hasPermission(io.github.hello09x.fakeplayer.core.command.Permission.bypassLimits)) {
             return;
         }
 
@@ -495,7 +537,7 @@ public class FakeplayerManager {
             throw new CommandException(translatable("fakeplayer.command.spawn.error.server-limit"));
         }
 
-        if (this.playerList.getByCreator(creator.getName()).size() >= this.config.getPlayerLimit()) {
+        if (this.countByCreator(creator) >= this.config.getPlayerLimit()) {
             throw new CommandException(translatable("fakeplayer.command.spawn.error.player-limit"));
         }
 

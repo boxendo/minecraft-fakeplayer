@@ -1,0 +1,26 @@
+players:
+- uuid: 4aadf9f3-8317-4bc3-8db8-e0fb5a031875
+  name: baseline
+  creator-uuid: null
+  creator-name: Rcon
+  creator-ip: 127.0.0.1
+  world: world
+  x: 0.0
+  y: -60.0
+  z: 0.0
+  yaw: 0.0
+  pitch: 0.0
+  sprinting: false
+  sneaking: false
+  invulnerable: true
+  collidable: true
+  pickup-items: true
+  wolverine: false
+  replenish: false
+  autofish: false
+  actions:
+    JUMP:
+      maximum: -1
+      remains: -1
+      interval: 0
+      wait: 0

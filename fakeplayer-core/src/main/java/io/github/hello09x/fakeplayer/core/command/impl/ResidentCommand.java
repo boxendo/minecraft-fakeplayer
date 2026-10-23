@@ -27,11 +27,17 @@ public class ResidentCommand extends AbstractCommand {
      * <p>开启后插件关闭时会保存该假人的位置与动作，服务器重启后原地恢复。</p>
      */
     public void resident(@NotNull CommandSender sender, @NotNull CommandArguments args) throws WrapperCommandSyntaxException {
-        var target = super.getFakeplayer(sender, args);
-        var value = (String) Objects.requireNonNull(args.get("value"));
-        var resident = Boolean.parseBoolean(value);
+        set(sender,args,Boolean.parseBoolean((String)Objects.requireNonNull(args.get("value"))));
+    }
 
-        this.residentManager.setResident(target, resident);
+    public void set(CommandSender sender,CommandArguments args,boolean resident) throws WrapperCommandSyntaxException {
+        var target=super.getFakeplayer(sender,args);
+        if (!residentManager.isReadable()) {
+            sender.sendMessage(translatable("fakeplayer.resident.unreadable"));
+            return;
+        }
+        String value=String.valueOf(resident);
+        this.residentManager.setResident(target,resident);
 
         sender.sendMessage(translatable(
                 "fakeplayer.command.resident.success",

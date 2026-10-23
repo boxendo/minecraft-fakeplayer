@@ -66,7 +66,7 @@ public abstract class CommandSupports {
     public static @NotNull Argument<Player> fakeplayer(@NotNull String nodeName, @Nullable Predicate<Player> predicate) {
         return new CustomArgument<>(new StringArgument(nodeName), info -> {
             var sender = info.sender();
-            var target = sender.isOp()
+            var target = io.github.hello09x.fakeplayer.core.util.FakeplayerAccess.managesOthers(sender)
                     ? manager.get(info.currentInput())
                     : manager.get(sender, info.currentInput());
             if (predicate != null && target != null && !predicate.test(target)) {
@@ -77,7 +77,7 @@ public abstract class CommandSupports {
             var sender = info.sender();
             var arg = info.currentArg();
 
-            var targets = sender.isOp()
+            var targets = io.github.hello09x.fakeplayer.core.util.FakeplayerAccess.managesOthers(sender)
                     ? manager.getAll(predicate)
                     : manager.getAll(sender, predicate);
 
@@ -104,7 +104,7 @@ public abstract class CommandSupports {
                 return manager.getAll(sender);
             }
 
-            var target = sender.isOp()
+            var target = io.github.hello09x.fakeplayer.core.util.FakeplayerAccess.managesOthers(sender)
                     ? manager.get(arg)
                     : manager.get(sender, arg);
 
@@ -113,7 +113,7 @@ public abstract class CommandSupports {
             var sender = info.sender();
             var arg = info.currentArg().toLowerCase();
 
-            var fakes = sender.isOp()
+            var fakes = io.github.hello09x.fakeplayer.core.util.FakeplayerAccess.managesOthers(sender)
                     ? manager.getAll()
                     : manager.getAll(sender);
 
@@ -187,11 +187,11 @@ public abstract class CommandSupports {
     }
 
     public static boolean needSelect(@NotNull CommandSender sender) {
-        return sender.isOp() || (config.getPlayerLimit() > 1 && manager.countByCreator(sender) > 0);
+        return io.github.hello09x.fakeplayer.core.util.FakeplayerAccess.managesOthers(sender) || (config.getPlayerLimit() > 1 && manager.countByCreator(sender) > 0);
     }
 
     public static boolean hasFakeplayer(@NotNull CommandSender sender) {
-        return sender.isOp() || manager.countByCreator(sender) > 0;
+        return io.github.hello09x.fakeplayer.core.util.FakeplayerAccess.managesOthers(sender) || manager.countByCreator(sender) > 0;
     }
 
     public static boolean isCmdAvailable(@NotNull CommandSender sender) {

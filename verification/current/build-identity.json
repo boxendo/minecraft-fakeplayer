@@ -1,0 +1,14 @@
+{
+  "version": "0.4.1-paper26.3",
+  "jar_sha256": "a40f29487ed149145bc8850adc695a7403004f2804b5d4f23f2204cca1bda2ec",
+  "input_jar_sha256": "3e153bb9cebfb11882e34acb54444fd9a768bad640cd3dd2389a2f547e65780d",
+  "source_base": "7f35b72492e6ff3248ddb8f483eb3ca7d3f42d78",
+  "branch": "fix/paper26.3-state-and-spawn",
+  "paper": "26.3 build 205 (a90108f)",
+  "paper_api": "26.3.build.205-stable",
+  "commandapi": "12.1.0",
+  "java": "26.0.2.1",
+  "test_network": "127.0.0.1 only; offline-mode test server",
+  "live_player_client_tested": false,
+  "other_plugins_tested": false
+}

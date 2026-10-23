@@ -1,0 +1,9 @@
+PASS cancelled placement fails and cleans registry
+PASS diagnostics identify actual failed teleport stage
+PASS diagnostics preserve cancellation result and listener leads
+PASS login denial enforced under NEVER policy
+PASS diagnostics preserve login denial reason
+PASS fixture kick cancellation keeps fake online
+PASS diagnostics preserve cancelled kick outcome
+PASS diagnostic history persists to disk
+PASS phase conflicts

@@ -26,6 +26,11 @@ public class NMSServerImpl implements NMSServer {
     }
 
     @Override
+    public @NotNull java.io.File getPlayerDataFolder() {
+        return handle.getPlayerList().playerIo.getPlayerDir();
+    }
+
+    @Override
     public @NotNull NMSServerPlayer newPlayer(@NotNull UUID uuid, @NotNull String name) {
         var handle = new ServerPlayer(
                 new NMSServerImpl(Bukkit.getServer()).getHandle(),

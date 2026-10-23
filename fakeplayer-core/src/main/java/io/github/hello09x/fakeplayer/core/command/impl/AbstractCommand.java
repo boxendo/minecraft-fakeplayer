@@ -60,8 +60,13 @@ public abstract class AbstractCommand {
             fake = manager.getSelection(p);
         }
         if (fake != null) {
+            if ((!io.github.hello09x.fakeplayer.core.util.FakeplayerAccess.managesOthers(sender)
+                    && manager.get(sender, fake.getName()) == null) || (predicate != null && !predicate.test(fake))) {
+                throw CommandAPI.failWithString("没有匹配的假人，或你无权访问。");
+            }
             return fake;
         }
+        if (args.getRaw("name") != null) throw CommandAPI.failWithString("没有匹配的假人，或你无权访问。");
         var locale = TranslatorUtils.getLocale(sender);
 
         var all = manager.getAll(sender, predicate);
@@ -96,10 +101,14 @@ public abstract class AbstractCommand {
         @SuppressWarnings("unchecked")
         var players = (List<Player>) args.get("names");
 
+        if (args.getRaw("names") != null && (players == null || players.isEmpty()))
+            throw CommandAPI.failWithString("没有匹配的假人，或你无权访问。");
+        if (players != null && players.stream().anyMatch(player -> !io.github.hello09x.fakeplayer.core.util.FakeplayerAccess.managesOthers(sender) && manager.get(sender, player.getName()) == null))
+            throw CommandAPI.failWithString("没有匹配的假人，或你无权访问。");
         // 优先选中的假人
         if (players == null || players.isEmpty()) {
             var fake = manager.getSelection(sender);
-            if (fake != null) {
+            if (fake != null && (io.github.hello09x.fakeplayer.core.util.FakeplayerAccess.managesOthers(sender) || manager.get(sender, fake.getName()) != null)) {
                 return Collections.singletonList(fake);
             }
         }

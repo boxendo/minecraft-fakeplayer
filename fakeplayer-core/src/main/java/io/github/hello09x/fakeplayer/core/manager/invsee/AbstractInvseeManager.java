@@ -34,11 +34,12 @@ public abstract class AbstractInvseeManager implements InvseeManager {
 
     @Override
     public boolean invsee(@NotNull Player viewer, @NotNull Player whom) {
+        if (!viewer.hasPermission(io.github.hello09x.fakeplayer.core.command.Permission.invsee)) return false;
         var fp = fakeplayerList.getByUUID(whom.getUniqueId());
         if (fp == null) {
             return false;
         }
-        if (!viewer.isOp() && !fp.isCreatedBy(viewer)) {
+        if (!io.github.hello09x.fakeplayer.core.util.FakeplayerAccess.managesOthers(viewer) && !fp.isCreatedBy(viewer)) {
             return false;
         }
         var view = this.openInventory(viewer, whom);

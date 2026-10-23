@@ -7,7 +7,7 @@ import com.google.common.cache.CacheBuilder;
 import com.google.errorprone.annotations.CanIgnoreReturnValue;
 import com.google.inject.Inject;
 import com.google.inject.Singleton;
-import io.github.hello09x.devtools.core.utils.SchedulerUtils;
+import io.github.hello09x.fakeplayer.core.util.ServerTasks;
 import io.github.hello09x.fakeplayer.core.Main;
 import io.github.hello09x.fakeplayer.core.config.FakeplayerConfig;
 import io.github.hello09x.fakeplayer.core.repository.FakeplayerSkinRepository;
@@ -63,7 +63,7 @@ public class FakeplayerSkinManager {
         if (!(creator instanceof Player p)) {
             // 非玩家创建的假人只能采用在线皮肤
             if (config.isDefaultOnlineSkin()) {
-                this.useOnlineSkinAsync(to, Bukkit.getOfflinePlayer(to.getName()));
+                this.useOnlineSkinAsync(to, to.getName());
                 return;
             }
             return;
@@ -78,7 +78,7 @@ public class FakeplayerSkinManager {
 
         if (config.isDefaultOnlineSkin()) {
             // 使用真实皮肤
-            this.useOnlineSkinAsync(to, Bukkit.getOfflinePlayer(to.getName()));
+            this.useOnlineSkinAsync(to, to.getName());
         } else {
             // 使用召唤者皮肤
             this.useSkin(to, p);
@@ -105,15 +105,22 @@ public class FakeplayerSkinManager {
             return CompletableFuture.completedFuture(true);
         }
 
-        var profile = from.getPlayerProfile();
+        return this.completeSkinAsync(to, from.getPlayerProfile());
+    }
+
+    private CompletableFuture<Boolean> useOnlineSkinAsync(@NotNull Player to, @NotNull String name) {
+        return this.completeSkinAsync(to, Bukkit.createProfile(name));
+    }
+
+    private CompletableFuture<Boolean> completeSkinAsync(@NotNull Player to, @NotNull PlayerProfile profile) {
         return CompletableFuture
                 .supplyAsync(() -> {
                     try {
                         return profile.complete() ? ProfileCompleteResult.SUCCESS : ProfileCompleteResult.FAILED;
                     } catch (Exception e) {
                         log.warning("Failed to update skin of fake player %s since could not fetch online profile from mojang\n%s".formatted(
-                                Optional.ofNullable(from.getName())
-                                        .orElse(from.getUniqueId().toString()),
+                                Optional.ofNullable(profile.getName())
+                                        .orElse(String.valueOf(profile.getId())),
                                 Throwables.getStackTraceAsString(e)
                         ));
                         return ProfileCompleteResult.ERROR;
@@ -121,10 +128,12 @@ public class FakeplayerSkinManager {
                 })
                 .thenComposeAsync(result -> {
                     if (result == ProfileCompleteResult.SUCCESS && profile.hasTextures()) {
-                        profileCache.put(from.getUniqueId(), profile);
+                        if (profile.getId() != null) {
+                            profileCache.put(profile.getId(), profile);
+                        }
                     }
 
-                    return SchedulerUtils.runTask(Main.getInstance(), () -> switch (result) {
+                    return ServerTasks.call(() -> switch (result) {
                         case SUCCESS -> {
                             try {
                                 this.setTexture(to, profile);
@@ -135,8 +144,8 @@ public class FakeplayerSkinManager {
                         }
                         case FAILED -> {
                             log.warning("Failed to update online skin of fakeplayer %s, maybe not a real player".formatted(
-                                    Optional.ofNullable(from.getName())
-                                            .orElse(from.getUniqueId().toString()))
+                                    Optional.ofNullable(profile.getName())
+                                            .orElse(String.valueOf(profile.getId())))
                             );
                             yield false;
                         }

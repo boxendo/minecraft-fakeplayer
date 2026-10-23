@@ -158,9 +158,11 @@ public class NameManager {
             }
         }
 
-        var player = Bukkit.getOfflinePlayer(name);
-        var uuid = player.getUniqueId();
-        if (player.hasPlayedBefore() && !legacyUsedIdRepository.contains(uuid) && !profileRepository.existsByUUID(uuid)) {
+        // A name lookup through getOfflinePlayer(String) may block on Mojang.
+        // Only local profiles can have played on this server.
+        var player = Bukkit.getOfflinePlayerIfCached(name);
+        var uuid = player == null ? null : player.getUniqueId();
+        if (player != null && player.hasPlayedBefore() && !legacyUsedIdRepository.contains(uuid) && !profileRepository.existsByUUID(uuid)) {
             throw new IllegalCustomNameException(translatable(
                     "fakeplayer.spawn.error.name.used",
                     text(name, GOLD),

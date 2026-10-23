@@ -134,6 +134,10 @@ persistent-data: true
 # if this value is false, players can type command '/fp respawn' to respawn him
 kick-on-dead: true
 
+# 假人死亡时保留背包、装备和经验，不产生物品/经验掉落（独立于世界 keepInventory）。
+# Keep fake-player inventory and experience on death. Real players are unaffected.
+keep-inventory-on-death: false
+
 
 # 服务器最近 5 分钟平均 TPS 低于这个值清除所有假人
 # 每 60 秒检测一次
@@ -291,3 +295,23 @@ default-features:
 # 检测更新
 # 仅仅是检测, 并不会帮你下载
 check-for-updates: true
+
+
+# 生成与驻留恢复共用预算。目标区块请求预算不等于整个服务端的区块生成上限。
+# All manual spawns and resident restores share these limits.
+spawning:
+  per-tick: 1
+  max-concurrent: 4
+  chunk-loads-per-tick: 1
+  max-concurrent-chunk-loads: 2
+  max-queued: 128
+  # 0 = 不限制；这是全体假人的上限，不被管理员的 bypass-limits 绕过。
+  max-players-per-world: 0
+  # 按 Bukkit 世界名覆盖上限，例如 world: 50。
+  world-limits: {}
+  # 周期性驻留保存分批执行；正常关服仍完整保存。
+  resident-saves-per-tick: 4
+
+diagnostics:
+  # 保留最近的历史诊断，活动中的生成不会被此限制逐出。
+  history-limit: 200

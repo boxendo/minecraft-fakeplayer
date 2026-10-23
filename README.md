@@ -1,5 +1,7 @@
 # FakePlayer
 
+Current maintenance version: **0.5.0-paper26.3**. Includes spawn and player-data fixes, reliable resident restoration, an optional death inventory/XP retention setting, diagnostics, offline resident management, generation budgets, world limits and granular permissions. See the [maintenance guide](MAINTENANCE.md) and [verification results](verification/RESULTS-0.5.0.md).
+
 > **Paper 26.3 port**
 > This fork targets Minecraft / Paper **26.3** (Java 25) only and keeps just the `fakeplayer-v26_3` module.
 > It requires CommandAPI **12.1.0+**. See [BUILD-26.3.md](BUILD-26.3.md) for the build steps and the full change list.
@@ -27,7 +29,7 @@ This is a server side plugin inspired by [Carpet-Mod](https://github.com/gnembon
 ## Requirements
 
 + [Paper](https://papermc.io) or [Purpur](http://purpurmc.org) software
-+ [CommandAPI](https://commandapi.jorel.dev) Plugin (Any version **except** `10.0.0`)
++ [CommandAPI](https://commandapi.jorel.dev) Plugin **12.1.0+**
 
 ## Config file
 

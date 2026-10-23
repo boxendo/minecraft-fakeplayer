@@ -133,13 +133,23 @@ public class FakeplayerListener implements Listener {
             return;
         }
 
-        // 有一些跨服同步插件会退出时同步生命值, 假人重新生成的时候同步为 0
-        // 因此在死亡时将生命值设置恢复满血先
-        Optional.ofNullable(player.getAttribute(Attribute.MAX_HEALTH))
-                .map(AttributeInstance::getValue)
-                .ifPresent(player::setHealth);
-        event.setCancelled(true);
-        manager.remove(event.getPlayer().getName(), event.deathMessage());
+        // Let Paper finish the death transaction before saving/removing the player.
+        Bukkit.getScheduler().runTask(Main.getInstance(), () -> {
+            if (player.isOnline() && player.isDead()) {
+                manager.removeAfterDeath(player);
+            }
+        });
+    }
+
+    @EventHandler(ignoreCancelled = true, priority = EventPriority.HIGHEST)
+    public void keepInventoryOnDeath(@NotNull PlayerDeathEvent event) {
+        if (manager.isNotFake(event.getPlayer()) || !config.isKeepInventoryOnDeath()) {
+            return;
+        }
+        event.setKeepInventory(true);
+        event.getDrops().clear();
+        event.setKeepLevel(true);
+        event.setDroppedExp(0);
     }
 
     /**

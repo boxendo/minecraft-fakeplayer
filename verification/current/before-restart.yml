@@ -1,0 +1,26 @@
+players:
+- uuid: 70949d72-069b-43b0-94f6-7b951a63a030
+  name: residentbot
+  creator-uuid: 8b7e21bd-707e-4cba-9693-10084319402f
+  creator-name: ownerbot
+  creator-ip: 127.0.0.15
+  world: world
+  x: 100.0
+  y: -60.0
+  z: 100.0
+  yaw: 0.0
+  pitch: 0.0
+  sprinting: false
+  sneaking: false
+  invulnerable: true
+  collidable: true
+  pickup-items: true
+  wolverine: false
+  replenish: false
+  autofish: false
+  actions:
+    JUMP:
+      maximum: -1
+      remains: -1
+      interval: 5
+      wait: 0

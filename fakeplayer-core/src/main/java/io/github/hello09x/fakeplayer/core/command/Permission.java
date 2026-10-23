@@ -38,6 +38,14 @@ public interface Permission {
     String ride = "fakeplayer.command.ride";
     String swap = "fakeplayer.command.swap";
     String resident = "fakeplayer.command.resident";
+    String residentRestore = "fakeplayer.command.resident.restore";
+    String residentForget = "fakeplayer.command.resident.forget";
+    String killall = "fakeplayer.admin.killall";
+    String reload = "fakeplayer.admin.reload";
+    String diagnose = "fakeplayer.command.diagnose";
+    String manageOthers = "fakeplayer.admin.manage-others";
+    String diagnoseServer = "fakeplayer.admin.diagnostics";
+    String bypassLimits = "fakeplayer.admin.bypass-limits";
     String replenish = "fakeplayer.config.replenish";
     String replenishFromChest = "fakeplayer.config.replenish.chest";
     String autofish = "fakeplayer.config.autofish";

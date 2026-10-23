@@ -39,7 +39,7 @@ public class ActionManager {
     ) {
         return Optional.ofNullable(this.managers.get(player.getUniqueId()))
                        .map(manager -> manager.get(action))
-                       .filter(ac -> ac.getSetting().remains > 0)
+                       .filter(ac -> ac.getSetting().remains != 0)
                        .isPresent();
     }
 
@@ -51,7 +51,7 @@ public class ActionManager {
 
         return manager.entrySet()
                       .stream()
-                      .filter(actions -> actions.getValue().getSetting().remains > 0)
+                      .filter(actions -> actions.getValue().getSetting().remains != 0)
                       .map(Map.Entry::getKey)
                       .collect(Collectors.toSet());
     }
@@ -71,7 +71,7 @@ public class ActionManager {
         var result = new LinkedHashMap<ActionType, ActionSetting>();
         for (var entry : manager.entrySet()) {
             var setting = entry.getValue().getSetting();
-            if (setting.maximum == 0) {
+            if (setting.remains == 0) {
                 continue;
             }
             result.put(entry.getKey(), setting.clone());

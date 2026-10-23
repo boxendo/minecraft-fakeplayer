@@ -38,7 +38,7 @@ public class ListCommand extends AbstractCommand {
         var page = (int) args.getOptional("page").orElse(1);
         var size = (int) args.getOptional("size").orElse(10);
 
-        var fakes = sender.isOp()
+        var fakes = io.github.hello09x.fakeplayer.core.util.FakeplayerAccess.managesOthers(sender)
                 ? manager.getAll()
                 : manager.getAll(sender);
 

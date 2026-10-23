@@ -133,3 +133,10 @@ buildtool/
 # build-time NMS classpath (Mojang code, do not commit)
 lib/*.jar
 
+
+# Local maintenance build/test tools and Python caches
+.local-tools/
+.test-server/
+__pycache__/
+
+verification/diagnostics/

@@ -1,0 +1,14 @@
+PASS quit cleans registry
+PASS same name same UUID
+PASS inventory survives
+PASS selected hotbar survives
+PASS main hand survives
+PASS offhand survives
+PASS armor survives
+PASS ender chest survives
+PASS XP survives: 123
+PASS food survives
+PASS expme clears source
+PASS expme transfers full XP
+PASS expme cannot duplicate XP
+PASS phase state

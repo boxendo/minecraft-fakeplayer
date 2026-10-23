@@ -2,176 +2,302 @@ package io.github.hello09x.fakeplayer.core.manager;
 
 import com.google.inject.Inject;
 import com.google.inject.Singleton;
-import io.github.hello09x.devtools.core.utils.Exceptions;
-import io.github.hello09x.fakeplayer.api.spi.ActionSetting;
-import io.github.hello09x.fakeplayer.api.spi.ActionType;
+import io.github.hello09x.fakeplayer.api.spi.*;
 import io.github.hello09x.fakeplayer.core.Main;
-import io.github.hello09x.fakeplayer.core.entity.Fakeplayer;
-import io.github.hello09x.fakeplayer.core.entity.SpawnOption;
+import io.github.hello09x.fakeplayer.core.config.FakeplayerConfig;
+import io.github.hello09x.fakeplayer.core.entity.*;
 import io.github.hello09x.fakeplayer.core.manager.action.ActionManager;
+import io.github.hello09x.fakeplayer.core.manager.diagnostic.DiagnosticManager;
 import io.github.hello09x.fakeplayer.core.manager.naming.SequenceName;
-import io.github.hello09x.fakeplayer.core.util.OfflineCommandSender;
-import org.bukkit.Bukkit;
-import org.bukkit.Location;
+import io.github.hello09x.fakeplayer.core.util.*;
+import org.bukkit.*;
 import org.bukkit.command.CommandSender;
 import org.bukkit.configuration.file.YamlConfiguration;
 import org.bukkit.entity.Player;
-import org.bukkit.potion.PotionEffectType;
-import org.jetbrains.annotations.NotNull;
-import org.jetbrains.annotations.Nullable;
-
+import org.bukkit.scheduler.BukkitTask;
+import org.jetbrains.annotations.*;
 import java.io.File;
-import java.io.IOException;
 import java.util.*;
+import java.util.concurrent.CompletableFuture;
 import java.util.logging.Logger;
 
-/**
- * 假人驻留管理。
- *
- * <p>开启驻留的假人会在插件关闭时被写入 {@code resident.yml}，
- * 服务器下次启动后按保存的世界、坐标、朝向和动作重新生成。</p>
- */
 @Singleton
 public class ResidentManager {
-
-    private final static Logger log = Main.getInstance().getLogger();
-
-    private final static String FILE_NAME = "resident.yml";
-
+    private static final Logger log=Main.getInstance().getLogger();
     private final FakeplayerList playerList;
-
     private final ActionManager actionManager;
+    private final FakeplayerConfig config;
+    private final SpawnCoordinator coordinator;
+    private final DiagnosticManager diagnostics;
+    private final File file=new File(Main.getInstance().getDataFolder(),"resident.yml");
+    private final Map<UUID,Map<String,Object>> saved=new LinkedHashMap<>();
+    private final Set<UUID> restoring=new HashSet<>();
+    private final Map<UUID,Integer> attempts=new HashMap<>();
+    private final Map<UUID,String> states=new HashMap<>(), reasons=new HashMap<>();
+    private boolean readable=true, started, shuttingDown;
+    private BukkitTask saveBatch;
 
-    private final File file;
-
-    /**
-     * 插件关闭流程中，忽略 quit 事件带来的“取消驻留”
-     */
-    private volatile boolean shuttingDown;
+    public record View(UUID uuid,String name,UUID creatorId,String creatorName,String world,
+                       String state,String reason,int attempts,long lastSave,long lastRestore) {}
 
     @Inject
-    public ResidentManager(FakeplayerList playerList, ActionManager actionManager) {
-        this.playerList = playerList;
-        this.actionManager = actionManager;
-        this.file = new File(Main.getInstance().getDataFolder(), FILE_NAME);
-
-        // 崩溃兜底：每 10 秒快照一次
-        Bukkit.getScheduler().runTaskTimer(Main.getInstance(), this::saveQuietly, 200L, 200L);
+    public ResidentManager(FakeplayerList players, ActionManager actions, FakeplayerConfig config,
+                           SpawnCoordinator coordinator, DiagnosticManager diagnostics) {
+        this.playerList=players; this.actionManager=actions; this.config=config;
+        this.coordinator=coordinator; this.diagnostics=diagnostics;
+        load();
+        Bukkit.getScheduler().runTaskTimer(Main.getInstance(), () -> {
+            if (started && !shuttingDown) { restoreAll(); saveBatched(); }
+        },200,200);
     }
 
-    /**
-     * 判断假人是否开启了驻留
-     */
-    public boolean isResident(@NotNull Player player) {
-        var fake = this.playerList.getByUUID(player.getUniqueId());
-        return fake != null && fake.isResident();
+    public boolean isReadable() { return readable; }
+    public boolean isResident(Player player) {
+        var fake=playerList.getByUUID(player.getUniqueId());
+        return fake!=null && fake.isResident();
     }
 
-    /**
-     * 设置假人是否驻留，并立即落盘
-     */
-    public void setResident(@NotNull Player player, boolean resident) {
-        var fake = this.playerList.getByUUID(player.getUniqueId());
-        if (fake == null) {
-            return;
-        }
-
+    public void setResident(Player player,boolean resident) {
+        if (!readable) throw new IllegalStateException("resident.yml 无法读取，已禁止覆盖；修复文件后重启");
+        var fake=playerList.getByUUID(player.getUniqueId());
+        if (fake==null) return;
         fake.setResident(resident);
-        if (resident) {
-            this.saveQuietly();
-        } else {
-            this.removeEntry(player.getUniqueId());
-        }
+        if (resident && player.isOnline()) { snapshot(fake); write(); }
+        else if (!resident) removeEntry(player.getUniqueId());
     }
 
-    /**
-     * 假人被移除 / 退出时调用，取消其驻留记录。
-     * <p>插件关闭时不移除，否则下次启动就无法恢复了。</p>
-     */
-    public void forget(@NotNull UUID uuid) {
-        if (this.shuttingDown) {
-            return;
-        }
-        this.removeEntry(uuid);
+    public void forgetExplicit(UUID uuid) {
+        if (!shuttingDown && !Bukkit.isStopping()) removeEntry(uuid);
     }
 
-    /**
-     * 插件关闭前调用：先快照，再标记 {@link #shuttingDown}，之后踢人不会删掉记录。
-     */
+    public void forget(UUID uuid) {
+        if (!shuttingDown && !Bukkit.isStopping() && !restoring.contains(uuid)) removeEntry(uuid);
+    }
+
     public void onDisable() {
-        this.saveQuietly();
-        this.shuttingDown = true;
+        shuttingDown=true;
+        if (saveBatch!=null) { saveBatch.cancel(); saveBatch=null; }
+        save();
     }
 
-    /**
-     * 服务器启动后恢复所有驻留假人。
-     */
-    public void restoreAll() {
-        if (!this.file.exists()) {
-            return;
-        }
-
-        YamlConfiguration config;
+    private void load() {
+        if (!file.exists()) return;
         try {
-            config = YamlConfiguration.loadConfiguration(this.file);
-        } catch (Throwable e) {
-            log.warning("Failed to read " + FILE_NAME + ": " + e.getMessage());
-            return;
-        }
-
-        var entries = config.getMapList("players");
-        if (entries.isEmpty()) {
-            return;
-        }
-
-        log.info("Restoring %d resident fake player(s)".formatted(entries.size()));
-        for (var entry : entries) {
-            try {
-                this.restore(entry);
-            } catch (Throwable e) {
-                log.warning("Failed to restore resident fake player: " + e);
+            var yaml=new YamlConfiguration(); yaml.load(file);
+            if (yaml.contains("players") && !yaml.isList("players")) throw new IllegalArgumentException("players must be a list");
+            var names=new HashSet<String>();
+            for (var raw:yaml.getList("players",List.of())) {
+                if (!(raw instanceof Map<?,?> row)) throw new IllegalArgumentException("Resident entry must be a map");
+                if (!(row.get("name") instanceof String nameValue) || nameValue.isBlank()) throw new IllegalArgumentException("Resident name is missing");
+                var id=UUID.fromString(String.valueOf(row.get("uuid")));
+                var name=String.valueOf(row.get("name"));
+                if (saved.containsKey(id) || !names.add(name.toLowerCase(Locale.ROOT))) throw new IllegalArgumentException("Duplicate resident: "+name);
+                var copy=new LinkedHashMap<String,Object>(); row.forEach((key,value)->copy.put(String.valueOf(key),value));
+                saved.put(id,copy); states.put(id,"PENDING");
             }
+        } catch (Exception error) {
+            readable=false;
+            log.log(java.util.logging.Level.SEVERE,"Cannot read resident.yml; writes disabled to protect existing data",error);
         }
     }
 
-    // ------------------------------------------------------------------
-    // 保存
-    // ------------------------------------------------------------------
+    public List<View> visible(CommandSender sender) {
+        return saved.entrySet().stream().filter(e->mayManage(sender,e.getValue())).map(e->view(e.getKey(),e.getValue())).toList();
+    }
 
-    private void saveQuietly() {
-        Exceptions.suppress(Main.getInstance(), this::save);
+    public View find(CommandSender sender,String key) {
+        return visible(sender).stream().filter(v->v.name().equalsIgnoreCase(key)||v.uuid().toString().equalsIgnoreCase(key)).findFirst().orElse(null);
+    }
+
+    private boolean mayManage(CommandSender sender,Map<String,Object> row) {
+        return FakeplayerAccess.mayManage(sender,parseUUID(Objects.toString(row.get("creator-uuid"),null)),Objects.toString(row.get("creator-name"),"CONSOLE"));
+    }
+
+    private View view(UUID id,Map<String,Object> row) {
+        var fake=playerList.getByUUID(id);
+        String state=fake!=null ? (fake.isOnline()?"ONLINE":"QUEUED") : states.getOrDefault(id,"PENDING");
+        return new View(id,String.valueOf(row.get("name")),parseUUID(Objects.toString(row.get("creator-uuid"),null)),
+                Objects.toString(row.get("creator-name"),"CONSOLE"),String.valueOf(row.get("world")),state,
+                reasons.getOrDefault(id,Objects.toString(row.get("last-error"),"")),attempts.getOrDefault(id,0),
+                number(row.get("last-saved-at")),number(row.get("last-restored-at")));
+    }
+
+    public String retry(UUID id) {
+        if (!readable) return "resident.yml 无法读取，已禁止覆盖；修复文件后重启";
+        var row=saved.get(id);
+        if (row==null) return "没有此驻留记录";
+        if (playerList.getByUUID(id)!=null) return "已在线或已在生成队列中";
+        attempts.remove(id);
+        var blocked=blocked(id,row);
+        if (blocked!=null) return blocked;
+        restore(id,row);
+        return playerList.getByUUID(id)!=null?"已加入恢复队列":reasons.getOrDefault(id,"恢复未完成，请查看诊断");
+    }
+
+    public boolean forgetRecord(UUID id) {
+        if (!readable || !saved.containsKey(id)) return false;
+        removeEntry(id);
+        var fake=playerList.getByUUID(id);
+        if (fake!=null) {
+            fake.setResident(false);
+            if (restoring.contains(id) && !fake.isOnline()) { fake.cancelSpawn(); playerList.remove(fake); }
+        }
+        return true;
+    }
+
+    public void restoreAll() {
+        started=true;
+        if (!readable || shuttingDown) return;
+        for (var e:new ArrayList<>(saved.entrySet())) {
+            var id=e.getKey();
+            if (playerList.getByUUID(id)!=null || restoring.contains(id)) continue;
+            if (attempts.getOrDefault(id,0)>=3) {
+                mark(id,"RETRY_EXHAUSTED","已达到本次启动的 3 次恢复尝试；可用 resident restore 手动重试"); continue;
+            }
+            if (blocked(id,e.getValue())==null) restore(id,e.getValue());
+        }
+    }
+
+    private String blocked(UUID id,Map<String,Object> row) {
+        String name=String.valueOf(row.get("name")), worldName=String.valueOf(row.get("world"));
+        if (Bukkit.getWorld(worldName)==null) { mark(id,"WAITING_WORLD","世界尚未加载: "+worldName); return reasons.get(id); }
+        if (Bukkit.getPlayerExact(name)!=null || Bukkit.getPlayer(id)!=null || playerList.getByName(name)!=null) {
+            mark(id,"NAME_CONFLICT","名称或 UUID 已被在线玩家/生成请求占用；不会踢出占用者"); return reasons.get(id);
+        }
+        var world=Bukkit.getWorld(worldName);
+        if (coordinator.occupancy(world)>=config.worldLimit(worldName)) {
+            mark(id,"LIMIT_BLOCKED","世界假人上限已满: "+worldName); return reasons.get(id);
+        }
+        if (playerList.getSize()>=config.getServerLimit()) {
+            mark(id,"LIMIT_BLOCKED","服务器假人上限已满"); return reasons.get(id);
+        }
+        if (coordinator.queued()>=config.getMaxQueuedSpawns()) {
+            mark(id,"LIMIT_BLOCKED","生成队列已满，保留记录等待下一批"); return reasons.get(id);
+        }
+        return null;
+    }
+
+    private void mark(UUID id,String state,String reason) {
+        if (state.equals(states.get(id)) && reason.equals(reasons.get(id))) return;
+        states.put(id,state); reasons.put(id,reason);
+        var row=saved.get(id);
+        if (row!=null) diagnostics.resident(id,String.valueOf(row.get("name")),parseUUID(Objects.toString(row.get("creator-uuid"),null)),
+                Objects.toString(row.get("creator-name"),"CONSOLE"),state,reason,number(row.get("last-saved-at")),number(row.get("last-restored-at")));
+    }
+
+    private void restore(UUID id,Map<String,Object> row) {
+        Fakeplayer fake=null;
+        try {
+            var world=Objects.requireNonNull(Bukkit.getWorld(String.valueOf(row.get("world"))));
+            var name=String.valueOf(row.get("name"));
+            var ownerName=Objects.toString(row.get("creator-name"),"CONSOLE");
+            var ownerId=parseUUID(Objects.toString(row.get("creator-uuid"),null));
+            CommandSender owner=ownerId==null?null:Bukkit.getPlayer(ownerId);
+            if (owner==null) owner=new OfflineCommandSender(ownerName,ownerId);
+            var location=new Location(world,coordinate(row,"x"),coordinate(row,"y"),coordinate(row,"z"),
+                    (float)coordinate(row,"yaw"),(float)coordinate(row,"pitch"));
+            fake=new Fakeplayer(owner,Objects.toString(row.get("creator-ip"),"127.0.0.1"),new SequenceName("restored",0,id,name),0);
+            fake.setResident(true); playerList.add(fake); restoring.add(id); attempts.merge(id,1,Integer::sum);
+            var option=new SpawnOption(location,toBoolean(row,"invulnerable"),toBoolean(row,"collidable"),false,
+                    toBoolean(row,"pickup-items"),false,toBoolean(row,"replenish"),toBoolean(row,"autofish"),toBoolean(row,"wolverine"),true);
+            var actions=readActions(row); var target=fake;
+            fake.spawnAsync(option,true).whenComplete((ignored,error)->ServerTasks.call(()->{
+                if (error!=null) {
+                    target.cancelSpawn();
+                    if (target.isOnline()) target.getPlayer().kick(net.kyori.adventure.text.Component.text("[fakeplayer] restore failed"));
+                    playerList.remove(target); restoring.remove(id);
+                    if (saved.containsKey(id)) {
+                        Throwable cause=error; while(cause.getCause()!=null && cause.getCause()!=cause) cause=cause.getCause();
+                        if (cause instanceof SpawnCoordinator.AdmissionException) {
+                            attempts.computeIfPresent(id,(key,value)->Math.max(0,value-1));
+                            mark(id,"LIMIT_BLOCKED",Objects.toString(cause.getMessage(),"生成预算暂不可用"));
+                        } else {
+                            mark(id,"FAILED",Objects.toString(cause.getMessage(),cause.getClass().getSimpleName()));
+                            row.put("last-error",reasons.get(id));
+                            log.warning("Failed to restore "+name+"; record retained: "+reasons.get(id));
+                        }
+                    }
+                    return null;
+                }
+                restoring.remove(id);
+                if (!saved.containsKey(id)) { target.setResident(false); return null; }
+                var player=target.getPlayer();
+                player.setSprinting(toBoolean(row,"sprinting")); player.setSneaking(toBoolean(row,"sneaking"));
+                actions.forEach((type,setting)->actionManager.setAction(player,type,setting));
+                row.put("last-restored-at",System.currentTimeMillis()); row.remove("last-error");
+                diagnostics.restored(id); states.put(id,"ONLINE"); reasons.remove(id);
+                saveBatched();
+                log.info("Restored resident fake player '"+name+"' at "+player.getLocation());
+                return null;
+            }));
+        } catch (Exception error) {
+            if (fake!=null) { playerList.remove(fake); restoring.remove(id); }
+            attempts.merge(id,1,Integer::sum); mark(id,"FAILED",Objects.toString(error.getMessage(),error.getClass().getSimpleName()));
+            row.put("last-error",reasons.get(id));
+            log.warning("Invalid resident '"+row.get("name")+"'; record retained: "+error);
+        }
+    }
+
+    private static double coordinate(Map<String,Object> row,String key) {
+        double value=Double.parseDouble(String.valueOf(row.get(key)));
+        if (!Double.isFinite(value)) throw new IllegalArgumentException("Invalid coordinate "+key);
+        return value;
+    }
+    private static long number(Object value) { return value instanceof Number n?n.longValue():0; }
+
+    private void snapshot(Fakeplayer fake) {
+        var player=fake.getPlayer();
+        if (!fake.isResident() || !player.isOnline() || restoring.contains(fake.getUUID()) || playerList.getByUUID(fake.getUUID())!=fake) return;
+        try {
+            if (config.isPersistData()) { player.saveData(); diagnostics.saved(fake.getUUID()); }
+            var row=toMap(fake,player); row.put("last-saved-at",System.currentTimeMillis());
+            saved.put(fake.getUUID(),row);
+        } catch (Exception error) {
+            diagnostics.event(fake.getUUID(),"SAVE","保存失败: "+error,org.bukkit.event.player.PlayerQuitEvent.getHandlerList());
+            log.warning("Failed to save "+fake.getName()+": "+error);
+        }
     }
 
     public void save() {
-        var residents = this.playerList.getAll().stream().filter(Fakeplayer::isResident).toList();
-        if (residents.isEmpty() && !this.file.exists()) {
-            return;
-        }
+        if (!readable) return;
+        for (var fake:playerList.getAll()) snapshot(fake);
+        write();
+    }
 
-        var config = new YamlConfiguration();
-        var entries = new ArrayList<Map<String, Object>>(residents.size());
-        for (var fake : residents) {
-            var player = fake.getPlayer();
-            if (player == null || !player.isOnline()) {
-                continue;
-            }
-            entries.add(this.toMap(fake, player));
-        }
+    private void saveBatched() {
+        if (!readable || shuttingDown || saveBatch!=null) return;
+        var remaining=new ArrayDeque<>(playerList.getAll().stream().filter(Fakeplayer::isResident).toList());
+        if (remaining.isEmpty()) { write(); return; }
+        saveBatch=Bukkit.getScheduler().runTaskTimer(Main.getInstance(),()->{
+            for (int i=0;i<config.getResidentSavesPerTick()&&!remaining.isEmpty();i++) snapshot(remaining.removeFirst());
+            if (remaining.isEmpty()) { saveBatch.cancel(); saveBatch=null; write(); }
+        },1,1);
+    }
 
-        config.set("players", entries);
-        try {
-            config.save(this.file);
-        } catch (IOException e) {
-            log.warning("Failed to save " + FILE_NAME + ": " + e.getMessage());
-        }
+    private void write() {
+        if (!readable || (saved.isEmpty()&&!file.exists())) return;
+        var yaml=new YamlConfiguration(); yaml.set("format-version",2); yaml.set("players",new ArrayList<>(saved.values()));
+        try { AtomicYamlFiles.write(yaml,file.toPath()); }
+        catch (Exception error) { log.log(java.util.logging.Level.SEVERE,"Failed to save resident.yml",error); }
+    }
+
+    private void removeEntry(UUID uuid) {
+        if (saved.remove(uuid)!=null) write();
+        attempts.remove(uuid); states.remove(uuid); reasons.remove(uuid);
     }
 
     private @NotNull Map<String, Object> toMap(@NotNull Fakeplayer fake, @NotNull Player player) {
         var loc = player.getLocation();
-        var map = new LinkedHashMap<String, Object>();
+        var map = new LinkedHashMap<String, Object>(saved.getOrDefault(fake.getUUID(), Map.of()));
         map.put("uuid", fake.getUUID().toString());
         map.put("name", fake.getName());
-        map.put("creator-uuid", fake.getCreator() instanceof Player p ? p.getUniqueId().toString() : null);
+        var creatorUuid = fake.getCreator() instanceof Player p ? p.getUniqueId()
+                : fake.getCreator() instanceof OfflineCommandSender offline ? offline.getUniqueId() : null;
+        if (creatorUuid == null) {
+            var legacyOwner = Bukkit.getPlayerExact(fake.getCreator().getName());
+            if (legacyOwner != null && !Set.of("CONSOLE", "Rcon").contains(fake.getCreator().getName())) creatorUuid=legacyOwner.getUniqueId();
+        }
+        map.put("creator-uuid", creatorUuid == null ? null : creatorUuid.toString());
         map.put("creator-name", fake.getCreator().getName());
         map.put("creator-ip", fake.getCreatorIp());
         map.put("world", loc.getWorld().getName());
@@ -185,7 +311,7 @@ public class ResidentManager {
         map.put("invulnerable", player.isInvulnerable());
         map.put("collidable", player.isCollidable());
         map.put("pickup-items", player.getCanPickupItems());
-        map.put("wolverine", player.hasPotionEffect(PotionEffectType.REGENERATION));
+        map.put("wolverine", "true".equals(io.github.hello09x.fakeplayer.core.repository.model.Feature.wolverine.getDetector().apply(player)));
         map.put("replenish", Main.getInjector().getInstance(FakeplayerReplenishManager.class).isReplenish(player));
         map.put("autofish", Main.getInjector().getInstance(FakeplayerAutofishManager.class).isAutofish(player));
 
@@ -201,109 +327,6 @@ public class ResidentManager {
         }
         map.put("actions", actions);
         return map;
-    }
-
-    private void removeEntry(@NotNull UUID uuid) {
-        if (!this.file.exists()) {
-            return;
-        }
-
-        try {
-            var config = YamlConfiguration.loadConfiguration(this.file);
-            var entries = new ArrayList<>(config.getMapList("players"));
-            var removed = entries.removeIf(entry -> uuid.toString().equals(String.valueOf(entry.get("uuid"))));
-            if (!removed) {
-                return;
-            }
-            config.set("players", entries);
-            config.save(this.file);
-        } catch (Throwable e) {
-            log.warning("Failed to update " + FILE_NAME + ": " + e.getMessage());
-        }
-    }
-
-    // ------------------------------------------------------------------
-    // 恢复
-    // ------------------------------------------------------------------
-
-    private void restore(@NotNull Map<?, ?> entry) {
-        var uuid = UUID.fromString(String.valueOf(entry.get("uuid")));
-        var name = String.valueOf(entry.get("name"));
-        var worldName = String.valueOf(entry.get("world"));
-        var world = Bukkit.getWorld(worldName);
-        if (world == null) {
-            log.warning("Skip restoring '%s': world '%s' is not loaded".formatted(name, worldName));
-            return;
-        }
-        if (Bukkit.getPlayerExact(name) != null) {
-            log.warning("Skip restoring '%s': name is occupied".formatted(name));
-            return;
-        }
-
-        var creatorName = Optional.ofNullable(entry.get("creator-name")).map(String::valueOf).orElse("CONSOLE");
-        var creatorUuid = this.parseUUID(Optional.ofNullable(entry.get("creator-uuid")).map(String::valueOf).orElse(null));
-        CommandSender creator = Optional.ofNullable(creatorUuid)
-                                        .map(Bukkit::getPlayer)
-                                        .map(p -> (CommandSender) p)
-                                        .orElseGet(() -> new OfflineCommandSender(creatorName, creatorUuid));
-
-        var creatorIp = Optional.ofNullable(entry.get("creator-ip")).map(String::valueOf).orElse("127.0.0.1");
-        var sequenceName = new SequenceName("restored", 0, uuid, name);
-        var fake = new Fakeplayer(creator, creatorIp, sequenceName, 0);
-        fake.setResident(true);
-        this.playerList.add(fake);
-
-        var location = new Location(
-                world,
-                this.toDouble(entry.get("x")),
-                this.toDouble(entry.get("y")),
-                this.toDouble(entry.get("z")),
-                (float) this.toDouble(entry.get("yaw")),
-                (float) this.toDouble(entry.get("pitch"))
-        );
-
-        var option = new SpawnOption(
-                location,
-                this.toBoolean(entry, "invulnerable"),
-                this.toBoolean(entry, "collidable"),
-                this.toBoolean(entry, "look-at-entity"),
-                this.toBoolean(entry, "pickup-items"),
-                false,
-                this.toBoolean(entry, "replenish"),
-                this.toBoolean(entry, "autofish"),
-                this.toBoolean(entry, "wolverine"),
-                true
-        );
-
-        var actions = this.readActions(entry);
-        var states = new boolean[]{
-                this.toBoolean(entry, "sprinting"),
-                this.toBoolean(entry, "sneaking")
-        };
-
-        fake.spawnAsync(option).whenComplete((ignored, throwable) -> {
-            if (throwable != null) {
-                log.warning("Failed to restore resident fake player '%s': %s".formatted(name, throwable));
-                this.playerList.remove(fake);
-                return;
-            }
-            Bukkit.getScheduler().runTask(Main.getInstance(), () -> this.applyState(fake.getPlayer(), states, actions));
-        });
-    }
-
-    private void applyState(@NotNull Player player, boolean[] states, @NotNull Map<ActionType, ActionSetting> actions) {
-        if (!player.isOnline()) {
-            return;
-        }
-
-        player.setSprinting(states[0]);
-        player.setSneaking(states[1]);
-
-        for (var entry : actions.entrySet()) {
-            this.actionManager.setAction(player, entry.getKey(), entry.getValue());
-        }
-
-        log.info("Restored resident fake player '%s' at %s".formatted(player.getName(), player.getLocation()));
     }
 
     private @NotNull Map<ActionType, ActionSetting> readActions(@NotNull Map<?, ?> entry) {
@@ -328,7 +351,9 @@ public class ResidentManager {
                     this.toInt(node.get("wait"), 0)
             );
             setting.remains = this.toInt(node.get("remains"), setting.maximum);
-            result.put(type, setting);
+            if (setting.remains != 0) {
+                result.put(type, setting);
+            }
         }
         return result;
     }

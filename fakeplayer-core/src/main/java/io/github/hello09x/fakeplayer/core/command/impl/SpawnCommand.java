@@ -69,8 +69,9 @@ public class SpawnCommand extends AbstractCommand {
         }
 
         var removedAt = Optional.ofNullable(config.getLifespan()).map(lifespan -> LocalDateTime.now().plus(lifespan)).orElse(null);
-        manager.spawnAsync(sender, name, spawnpoint, Optional.ofNullable(config.getLifespan()).map(Duration::toMillis).orElse(FakeplayerTicker.NON_REMOVE_AT))
-               .thenAcceptAsync(player -> {
+        var spawning = manager.spawnAsync(sender, name, spawnpoint, Optional.ofNullable(config.getLifespan()).map(Duration::toMillis).orElse(FakeplayerTicker.NON_REMOVE_AT));
+        if (!spawning.isDone()) sender.sendMessage(translatable("fakeplayer.command.spawn.queued", GRAY));
+        spawning.thenAcceptAsync(player -> {
                    if (player == null) {
                        return;
                    }
@@ -97,7 +98,9 @@ public class SpawnCommand extends AbstractCommand {
                        }
                    });
                }).exceptionally(e -> {
-                   if (Throwables.getRootCause(e) instanceof CommandException ce) {
+                   if (Throwables.getRootCause(e) instanceof io.github.hello09x.fakeplayer.core.manager.SpawnCoordinator.AdmissionException admission) {
+                       scheduler.runTask(Main.getInstance(), () -> sender.sendMessage(text(admission.getMessage(), RED)));
+                   } else if (Throwables.getRootCause(e) instanceof CommandException ce) {
                        scheduler.runTask(Main.getInstance(), () -> sender.sendMessage(ce.component()));
                    } else {
                        scheduler.runTask(Main.getInstance(), () -> sender.sendMessage(translatable("fakeplayer.command.spawn.error.unknown", RED)));

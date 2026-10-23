@@ -86,6 +86,39 @@ permissions:
     description: 'Allow player to run /fp hold'
   fakeplayer.command.cmd:
     description: 'Allow player to run /fp cmd'
+  fakeplayer.command.diagnose:
+    description: 'View diagnostics for your fake players'
+    default: op
+  fakeplayer.command.resident.restore:
+    description: 'Retry restoring your saved resident fake players'
+    default: op
+  fakeplayer.command.resident.forget:
+    description: 'Remove your resident records without deleting playerdata'
+    default: op
+  fakeplayer.admin.manage-others:
+    description: 'Manage fake players and resident records owned by others'
+    default: op
+  fakeplayer.admin.diagnostics:
+    description: 'View server-wide plugin and event diagnostics'
+    default: op
+  fakeplayer.admin.bypass-limits:
+    description: 'Bypass legacy creator/server spawn quotas, not performance budgets'
+    default: op
+  fakeplayer.admin.killall:
+    description: 'Remove all online and queued fake players'
+    default: op
+  fakeplayer.admin.reload:
+    description: 'Reload plugin configuration and translations'
+    default: op
+  fakeplayer.admin:
+    description: 'Server administration capabilities'
+    default: op
+    children:
+      - fakeplayer.admin.manage-others
+      - fakeplayer.admin.diagnostics
+      - fakeplayer.admin.bypass-limits
+      - fakeplayer.admin.killall
+      - fakeplayer.admin.reload
   fakeplayer.command.resident:
     description: 'Allow player to run /fp resident (keep fake players across server restarts)'
   fakeplayer.config.replenish:
@@ -114,6 +147,9 @@ permissions:
       - fakeplayer.command.config
       - fakeplayer.command.set
       - fakeplayer.command.resident
+      - fakeplayer.command.resident.restore
+      - fakeplayer.command.resident.forget
+      - fakeplayer.command.diagnose
 
   fakeplayer.tp:
     description: 'Includes all permissions about teleport'
@@ -156,4 +192,5 @@ permissions:
       - fakeplayer.tp
       - fakeplayer.exp
       - fakeplayer.action
-      - fakeplayer.cmd
+      - fakeplayer.command.cmd
+      - fakeplayer.admin

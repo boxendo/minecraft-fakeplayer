@@ -3,6 +3,11 @@ package io.github.hello09x.fakeplayer.core.command;
 import com.google.inject.Inject;
 import com.google.inject.Singleton;
 import dev.jorel.commandapi.CommandPermission;
+import dev.jorel.commandapi.arguments.StringArgument;
+import dev.jorel.commandapi.arguments.ArgumentSuggestions;
+import dev.jorel.commandapi.arguments.Argument;
+import io.github.hello09x.fakeplayer.core.manager.ResidentManager;
+import io.github.hello09x.fakeplayer.core.manager.diagnostic.DiagnosticManager;
 import dev.jorel.commandapi.arguments.EntitySelectorArgument;
 import io.github.hello09x.devtools.command.HelpCommand;
 import io.github.hello09x.devtools.core.utils.ComponentUtils;
@@ -81,6 +86,20 @@ public class CommandRegistry {
     private StopCommand stopCommand;
     @Inject
     private ResidentCommand residentCommand;
+    @Inject private ResidentManagementCommand residentManagement;
+    @Inject private DiagnoseCommand diagnoseCommand;
+    @Inject private ResidentManager residentManager;
+    @Inject private DiagnosticManager diagnostics;
+
+    private Argument<String> recordArgument(boolean history) {
+        return new StringArgument("record").replaceSuggestions(ArgumentSuggestions.strings(info -> {
+            var names = new java.util.TreeSet<String>();
+            residentManager.visible(info.sender()).forEach(view -> names.add(view.name()));
+            if (history) diagnostics.visible(info.sender()).forEach(entry -> names.add(entry.name));
+            return names.stream().filter(name -> name.toLowerCase(java.util.Locale.ROOT).startsWith(info.currentArg().toLowerCase(java.util.Locale.ROOT))).toArray(String[]::new);
+        }));
+    }
+
 
     @Inject
     private FakeplayerConfig config;
@@ -96,7 +115,6 @@ public class CommandRegistry {
                         "type fp ? for more information",
                         "hello09x [汤姆]"
                 )
-                .withPermission(Permission.spawn)
                 .withSubcommands(
                         command("select")
                                 .withPermission(Permission.select)
@@ -194,13 +212,29 @@ public class CommandRegistry {
                                 )
                                 .executesPlayer(configCommand::listConfig),
 
+                        command("diagnose")
+                                .withPermission(Permission.diagnose)
+                                .withShortDescription("fakeplayer.diagnose.description")
+                                .withOptionalArguments(recordArgument(true))
+                                .executes(diagnoseCommand::diagnose),
                         command("resident")
                                 .withPermission(Permission.resident)
                                 .withShortDescription("fakeplayer.command.resident.description")
-                                .withRequirement(CommandSupports::hasFakeplayer)
-                                .withArguments(literals("value", List.of("true", "false")))
-                                .withOptionalArguments(fakeplayer("name"))
-                                .executes(residentCommand::resident),
+                                .withSubcommands(
+                                        command("true").withRequirement(CommandSupports::hasFakeplayer)
+                                                .withOptionalArguments(fakeplayer("name"))
+                                                .executes((sender,args)-> { residentCommand.set(sender,args,true); }),
+                                        command("false").withRequirement(CommandSupports::hasFakeplayer)
+                                                .withOptionalArguments(fakeplayer("name"))
+                                                .executes((sender,args)-> { residentCommand.set(sender,args,false); }),
+                                        command("list").withOptionalArguments(int32("page",1)).executes(residentManagement::list),
+                                        command("status").withArguments(recordArgument(false)).executes(residentManagement::status),
+                                        command("restore").withPermission(Permission.residentRestore)
+                                                .withArguments(recordArgument(false)).executes(residentManagement::restore),
+                                        command("forget").withPermission(Permission.residentForget)
+                                                .withArguments(recordArgument(false)).executes(residentManagement::forget)
+                                )
+                                .executes(residentManagement::list),
 
                         command("expme")
                                 .withPermission(Permission.expme)
@@ -444,15 +478,15 @@ public class CommandRegistry {
 
                         command("killall")
                                 .withShortDescription("fakeplayer.command.killall.description")
-                                .withPermission(CommandPermission.OP)
+                                .withPermission(Permission.killall)
                                 .executes(killallCommand::killall),
                         command("reload")
                                 .withShortDescription("fakeplayer.command.reload.description")
-                                .withPermission(CommandPermission.OP)
+                                .withPermission(Permission.reload)
                                 .executes(reloadCommand::reload),
                         command("reload-translation")
                                 .withShortDescription("fakeplayer.command.reload-translation.description")
-                                .withPermission(CommandPermission.OP)
+                                .withPermission(Permission.reload)
                                 .executes(reloadCommand::reloadTranslation),
 
                         // developer debug

@@ -126,6 +126,8 @@ public class FakeplayerConfig extends PluginConfig {
      */
     private boolean kickOnDead;
 
+    private boolean keepInventoryOnDeath;
+
     /**
      * 自定义名称规则
      */
@@ -171,6 +173,15 @@ public class FakeplayerConfig extends PluginConfig {
 
     private Map<Feature, String> defaultFeatures;
 
+    private int spawnsPerTick, maxConcurrentSpawns, chunkLoadsPerTick, maxConcurrentChunkLoads;
+    private int maxQueuedSpawns, worldPlayerLimit, residentSavesPerTick, diagnosticHistoryLimit;
+    private Map<String, Integer> worldPlayerLimits;
+
+    public int worldLimit(String world) {
+        return this.worldPlayerLimits.getOrDefault(world, this.worldPlayerLimit);
+    }
+
+
     @Inject
     public FakeplayerConfig() {
         super(Main.getInstance());
@@ -182,6 +193,21 @@ public class FakeplayerConfig extends PluginConfig {
 
     @Override
     protected void reload(@NotNull FileConfiguration file) {
+        this.spawnsPerTick = Math.clamp(file.getInt("spawning.per-tick", 1), 1, 100);
+        this.maxConcurrentSpawns = Math.clamp(file.getInt("spawning.max-concurrent", 4), 1, 100);
+        this.chunkLoadsPerTick = Math.clamp(file.getInt("spawning.chunk-loads-per-tick", 1), 1, 100);
+        this.maxConcurrentChunkLoads = Math.clamp(file.getInt("spawning.max-concurrent-chunk-loads", 2), 1, 100);
+        this.maxQueuedSpawns = Math.clamp(file.getInt("spawning.max-queued", 128), 1, 10000);
+        this.worldPlayerLimit = maxIfZero(file.getInt("spawning.max-players-per-world", 0));
+        this.worldPlayerLimits = new HashMap<>();
+        var worldLimits = file.getConfigurationSection("spawning.world-limits");
+        if (worldLimits != null) {
+            worldLimits.getValues(false).forEach((world, value) -> {
+                if (value instanceof Number number) this.worldPlayerLimits.put(world, maxIfZero(number.intValue()));
+            });
+        }
+        this.residentSavesPerTick = Math.clamp(file.getInt("spawning.resident-saves-per-tick", 4), 1, 100);
+        this.diagnosticHistoryLimit = Math.clamp(file.getInt("diagnostics.history-limit", 200), 16, 2000);
         this.playerLimit = maxIfZero(file.getInt("player-limit", 1));
         this.serverLimit = maxIfZero(file.getInt("server-limit", 1000));
         this.followQuiting = file.getBoolean("follow-quiting", true);
@@ -194,9 +220,10 @@ public class FakeplayerConfig extends PluginConfig {
         this.postQuitCommands = file.getStringList("post-quit-commands");
         this.afterQuitCommands = file.getStringList("after-quit-commands");
         this.nameTemplate = file.getString("name-template", "");
-        this.dropInventoryOnQuiting = file.getBoolean("drop-inventory-on-quiting", true);
-        this.persistData = file.getBoolean("persist-data", true);
+        this.dropInventoryOnQuiting = file.getBoolean("drop-inventory-on-quiting", false);
+        this.persistData = file.getBoolean("persistent-data", file.getBoolean("persist-data", true));
         this.kickOnDead = file.getBoolean("kick-on-dead", true);
+        this.keepInventoryOnDeath = file.getBoolean("keep-inventory-on-death", false);
         this.checkForUpdates = file.getBoolean("check-for-updates", true);
         this.namePattern = getNamePattern(file);
         this.preventKicking = this.getPreventKicking(file);

@@ -1,0 +1,6 @@
+PASS pending login remains registered
+PASS pending duplicate rejected ignoring case
+PASS delayed login completes
+PASS denied login future fails
+PASS denied login releases registry
+PASS phase pending

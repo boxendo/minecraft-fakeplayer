@@ -1,9 +1,7 @@
 package io.github.hello09x.fakeplayer.core.entity;
 
 import io.github.hello09x.devtools.command.exception.CommandException;
-import io.github.hello09x.devtools.core.utils.EntityUtils;
-import io.github.hello09x.devtools.core.utils.SchedulerUtils;
-import io.github.hello09x.devtools.core.utils.WorldUtils;
+import io.github.hello09x.fakeplayer.core.util.ServerTasks;
 import io.github.hello09x.fakeplayer.api.spi.*;
 import io.github.hello09x.fakeplayer.core.Main;
 import io.github.hello09x.fakeplayer.core.config.FakeplayerConfig;
@@ -88,6 +86,18 @@ public class Fakeplayer {
     private boolean resident;
 
     @Getter
+    private volatile boolean spawnCancelled;
+
+    @Getter
+    @Setter
+    private boolean retainInventoryOnQuit;
+
+    public void cancelSpawn() {
+        this.spawnCancelled = true;
+        Main.getInjector().getInstance(io.github.hello09x.fakeplayer.core.manager.SpawnCoordinator.class).cancel(this);
+    }
+
+    @Getter
     @UnknownNullability
     private NMSNetwork network;
 
@@ -123,22 +133,40 @@ public class Fakeplayer {
      * 让假人诞生
      */
     public CompletableFuture<Void> spawnAsync(@NotNull SpawnOption option) {
+        return spawnAsync(option, false);
+    }
+
+    public CompletableFuture<Void> spawnAsync(@NotNull SpawnOption option, boolean restoring) {
         this.resident = option.resident();
+        return Main.getInjector().getInstance(io.github.hello09x.fakeplayer.core.manager.SpawnCoordinator.class).submit(this, option, restoring);
+    }
+
+    /** Internal entry point: the coordinator has admitted the job and prepared its target chunk. */
+    public CompletableFuture<Void> spawnNowAsync(@NotNull SpawnOption option) {
+        var diagnostics = Main.getInjector().getInstance(io.github.hello09x.fakeplayer.core.manager.diagnostic.DiagnosticManager.class);
+        diagnostics.stage(this, "PRE_LOGIN", "触发异步登录检查");
         var address = ipGen.next();
         this.player.setMetadata(MetadataKeys.SPAWNED_AT, new FixedMetadataValue(Main.getInstance(), Bukkit.getCurrentTick()));
-        return SchedulerUtils
-                .runTaskAsynchronously(Main.getInstance(), () -> {
+        return ServerTasks.async(() -> {
                     var event = this.callPreLoginEvent(address);
                     if (event.getLoginResult() != AsyncPlayerPreLoginEvent.Result.ALLOWED) {
                         throw new CommandException(translatable(
                                 "fakeplayer.command.spawn.error.disallowed",
-                                text(player.getName(), WHITE),
-                                event.kickMessage()
+                                text(player.getName(), WHITE), event.kickMessage()
                         ).color(RED));
                     }
-                })
-                .thenComposeAsync(nul -> SchedulerUtils.runTask(Main.getInstance(), () -> {
+                }).thenCompose(ignored -> ServerTasks.call(() -> {
+                    if (this.spawnCancelled || Bukkit.isStopping()) {
+                        throw new IllegalStateException("Spawn cancelled: " + this.name);
+                    }
+                    diagnostics.stage(this, "LOAD_DATA", "读取原生玩家存档");
+                    // In 26.3 placeNewPlayer no longer loads playerdata.
+                    if (config.isPersistData()) {
+                        this.player.loadData();
+                    }
+                    this.player.setPersistent(config.isPersistData());
                     {
+                        diagnostics.stage(this, "LOGIN", "触发登录检查");
                         var event = this.callLoginEvent(address);
                         if (event.getResult() != PlayerLoginEvent.Result.ALLOWED && config.getPreventKicking().ordinal() < PreventKicking.ON_SPAWNING.ordinal()) {
                             throw new CommandException(translatable(
@@ -172,46 +200,38 @@ public class Fakeplayer {
                         autofishManager.setAutofish(player, true);
                     }
 
+                    diagnostics.stage(this, "JOINING", "加入服务端");
                     this.network = bridge.createNetwork(address);
                     this.network.placeNewPlayer(Bukkit.getServer(), this.player);
-                    this.player.setHealth(Optional.ofNullable(this.player.getAttribute(Attributes.maxHealth()))
-                                                  .map(AttributeInstance::getValue)
-                                                  .orElse(20D));    // 恢复生命值
-                    this.player.setFoodLevel(20);
+                    if (!this.player.isOnline()) {
+                        throw new IllegalStateException("Fake player disconnected during login: " + this.name);
+                    }
+                    if (option.wolverine()) {
+                        io.github.hello09x.fakeplayer.core.repository.model.Feature.wolverine
+                                .getModifier().accept(player, "true");
+                    }
+                    if (this.player.getHealth() <= 0) {
+                        this.player.setHealth(Optional.ofNullable(this.player.getAttribute(Attributes.maxHealth()))
+                                .map(AttributeInstance::getValue).orElse(20D));
+                    }
                     this.setupName();
                     this.handle.setupClientOptions();   // 处理皮肤设置问题
 
-                    this.teleportToSpawnpoint(option.spawnAt().clone());
+                    diagnostics.stage(this, "TELEPORT", "放置到目标位置");
+                    return this.player.teleportAsync(option.spawnAt().clone());
+                })).thenCompose(teleport -> teleport).thenCompose(success -> ServerTasks.call(() -> {
+                    if (!success || !this.player.isOnline() || this.spawnCancelled) {
+                        throw new IllegalStateException("Could not place fake player at spawn location: " + this.name);
+                    }
                     this.ticker.runTaskTimer(Main.getInstance(), 0, 1);
+                    int inventoryHash = java.util.Arrays.hashCode(this.player.getInventory().getContents());
+                    Bukkit.getScheduler().runTaskLater(Main.getInstance(), () -> {
+                        if (player.isOnline() && inventoryHash != java.util.Arrays.hashCode(player.getInventory().getContents())) {
+                            diagnostics.event(this, "INVENTORY", "登录后背包发生变化；正常拾取、动作或同步均可能导致，未确定来源", org.bukkit.event.player.PlayerJoinEvent.getHandlerList());
+                        }
+                    }, 20);
+                    return null;
                 }));
-    }
-
-    /**
-     * 将假人传送到指定位置
-     *
-     * @param to 目标位置
-     */
-    private void teleportToSpawnpoint(@NotNull Location to) {
-        var from = this.player.getLocation();
-        if (from.getWorld().equals(to.getWorld())) {
-            // 如果生成世界等于目的世界, 则需要穿越一次维度才能获取刷怪能力
-            var otherWorld = WorldUtils.getOtherWorld(from.getWorld());
-            if (otherWorld == null || !player.teleport(otherWorld.getSpawnLocation())) {
-                this.creator.sendMessage(translatable(
-                        "fakeplayer.command.spawn.error.no-mob-spawning-ability",
-                        text(player.getName(), WHITE)
-                ).color(GRAY));
-            }
-        }
-
-        Bukkit.getScheduler().runTask(Main.getInstance(), () -> {
-            if (!EntityUtils.teleportAndSound(player, to)) {
-                this.creator.sendMessage(translatable(
-                        "fakeplayer.command.spawn.error.teleport-failed",
-                        text(player.getName(), WHITE)
-                ).color(GRAY));
-            }
-        });
     }
 
     public boolean isOnline() {
@@ -229,7 +249,13 @@ public class Fakeplayer {
                 this.uuid
         );
         Bukkit.getPluginManager().callEvent(event);
+        Main.getInjector().getInstance(io.github.hello09x.fakeplayer.core.manager.diagnostic.DiagnosticManager.class)
+                .event(this, "PRE_LOGIN", event.getLoginResult()+": "+plain(event.kickMessage()), event.getHandlers());
         return event;
+    }
+
+    private static String plain(net.kyori.adventure.text.Component component) {
+        return component == null ? "" : net.kyori.adventure.text.serializer.plain.PlainTextComponentSerializer.plainText().serialize(component);
     }
 
     private @NotNull PlayerLoginEvent callLoginEvent(@NotNull InetAddress address) {
@@ -239,6 +265,8 @@ public class Fakeplayer {
                 address
         );
         Bukkit.getPluginManager().callEvent(event);
+        Main.getInjector().getInstance(io.github.hello09x.fakeplayer.core.manager.diagnostic.DiagnosticManager.class)
+                .event(this, "LOGIN", event.getResult()+": "+plain(event.kickMessage())+"; prevent-kicking="+config.getPreventKicking(), event.getHandlers());
         return event;
     }
 
@@ -250,11 +278,8 @@ public class Fakeplayer {
      * @return 是否是创建者
      */
     public boolean isCreatedBy(@NotNull CommandSender sender) {
-        if (this.creator instanceof Player pc && sender instanceof Player ps) {
-            return pc.getUniqueId().equals(ps.getUniqueId());
-        }
-        // 服务器重启后恢复的假人，其创建者可能是离线的占位 sender，只能按名字比较
-        return this.creator.getName().equals(sender.getName());
+        return io.github.hello09x.fakeplayer.core.util.FakeplayerAccess.owns(sender,
+                io.github.hello09x.fakeplayer.core.util.FakeplayerAccess.creatorId(this.creator), this.creator.getName());
     }
 
     public @NotNull UUID getUUID() {

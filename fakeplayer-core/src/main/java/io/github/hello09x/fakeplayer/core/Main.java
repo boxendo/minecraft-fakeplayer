@@ -63,6 +63,7 @@ public final class Main extends JavaPlugin {
         {
             var manager = getServer().getPluginManager();
             manager.registerEvents(injector.getInstance(PlayerListener.class), this);
+            manager.registerEvents(injector.getInstance(io.github.hello09x.fakeplayer.core.manager.diagnostic.DiagnosticListener.class), this);
             manager.registerEvents(injector.getInstance(FakeplayerLifecycleListener.class), this);
             manager.registerEvents(injector.getInstance(FakeplayerListener.class), this);
             manager.registerEvents(injector.getInstance(FakeplayerAutofishManager.class), this);
@@ -127,6 +128,10 @@ public final class Main extends JavaPlugin {
 
     @Override
     public void onDisable() {
+        if (injector != null) {
+            Exceptions.suppress(this, () -> injector.getInstance(io.github.hello09x.fakeplayer.core.manager.SpawnCoordinator.class).close());
+            Exceptions.suppress(this, () -> injector.getInstance(io.github.hello09x.fakeplayer.core.manager.diagnostic.DiagnosticManager.class).flush());
+        }
         {
             Exceptions.suppress(this, () -> {
                 var messenger = getServer().getMessenger();

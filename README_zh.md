@@ -1,5 +1,7 @@
 # FakePlayer - 假人插件
 
+当前维护版本：**0.5.0-paper26.3**。修复生成、玩家数据与驻留恢复，新增假人死亡保留物品/经验开关、诊断、离线驻留管理、生成预算、世界上限和细分权限。安装、命令与配置见 [维护说明](MAINTENANCE.md)，实际测试范围见 [验证记录](verification/RESULTS-0.5.0.md)。
+
 > **Paper 26.3 移植版**
 > 本工程已移植到 Minecraft / Paper **26.3**（Java 25），只保留 `fakeplayer-v26_3` 模块，
 > 需要 CommandAPI **12.1.0+**。构建方式、逐文件改动与实测记录见 [BUILD-26.3.md](BUILD-26.3.md)。

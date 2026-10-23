@@ -205,7 +205,7 @@ public class FakePlayerCommandArgument extends Argument<CommandResult> implement
         }
 
         var manager = Main.getInjector().getInstance(FakeplayerManager.class);
-        if (sender.isOp()) {
+        if (io.github.hello09x.fakeplayer.core.util.FakeplayerAccess.managesOthers(sender)) {
             if (manager.isNotFake(target)) {
                 throw CommandSyntaxException.BUILT_IN_EXCEPTIONS.dispatcherUnknownCommand().createWithContext(context);
             }
@@ -234,7 +234,7 @@ public class FakePlayerCommandArgument extends Argument<CommandResult> implement
         }
         var name = args[2];
         var manager = Main.getInjector().getInstance(FakeplayerManager.class);
-        if (info.sender().isOp()) {
+        if (io.github.hello09x.fakeplayer.core.util.FakeplayerAccess.managesOthers(info.sender())) {
             return manager.get(name);
         }
         return manager.get(info.sender(), name);

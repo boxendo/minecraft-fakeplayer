@@ -1,0 +1,4 @@
+PASS coordinator close completes all cancelled futures
+PASS coordinator close releases queue and tickets
+PASS cancelled shutdown jobs cannot join later
+PASS phase closing

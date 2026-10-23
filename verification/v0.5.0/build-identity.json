@@ -1,0 +1,18 @@
+{
+  "version": "0.5.0-paper26.3",
+  "jar_sha256": "22224ddcc9e81ace65bd7e88990c23521d6665e5bd1db47dd28e64226fa01ce5",
+  "source_base": "7f35b72492e6ff3248ddb8f483eb3ca7d3f42d78",
+  "branch": "feat/paper26.3-management",
+  "paper": "26.3 build 205 (a90108f)",
+  "commandapi": "12.1.0",
+  "java": "26.0.2.1",
+  "network": "127.0.0.1 only; offline-mode isolated test server",
+  "selected_features": [
+    1,
+    2,
+    5,
+    6
+  ],
+  "real_player_client_tested": false,
+  "external_plugin_combinations_tested": false
+}
