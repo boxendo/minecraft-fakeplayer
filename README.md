@@ -1,10 +1,12 @@
 # FakePlayer
 
-Current maintenance version: **0.5.2-paper26.3**. Includes spawn and player-data fixes, reliable resident restoration, an optional death inventory/XP retention setting, diagnostics, offline resident management, generation budgets, world limits and granular permissions. See the [maintenance guide](MAINTENANCE.md) and [verification results](verification/RESULTS-0.5.2.md).
+Current maintenance version: **0.6.0-paper26.3**. Includes spawn and player-data fixes, reliable resident restoration, an optional death inventory/XP retention setting, diagnostics, offline resident management, generation budgets, world limits and granular permissions. See the [maintenance guide](MAINTENANCE.md) and [verification results](verification/RESULTS-0.6.0.md).
 
 0.5.1 also protects delayed chest refills, reuses saves across ASCII name-case changes, fixes nearest-target selection, writes resident/diagnostic YAML on a dedicated worker, and stops repeatedly failing actions with diagnostic evidence.
 
 0.5.2 fixes skipped after-quit commands, preserves placeholders after registry cleanup, and dispatches pending cleanup before a same-name respawn.
+
+0.6.0 adds a six-row live inventory GUI with armor, offhand, a read-only main-hand preview, hotbar selection markers, and a separate action page with permission-checked modes, periods and feature toggles.
 
 > **Paper 26.3 port**
 > This fork targets Minecraft / Paper **26.3** (Java 25) only and keeps just the `fakeplayer-v26_3` module.

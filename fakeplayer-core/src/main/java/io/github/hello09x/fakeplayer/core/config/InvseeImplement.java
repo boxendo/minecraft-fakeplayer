@@ -8,6 +8,10 @@ public enum InvseeImplement {
 
     AUTO,
 
+    CONTROL,
+
+    OPENINV,
+
     SIMPLE
 
 }

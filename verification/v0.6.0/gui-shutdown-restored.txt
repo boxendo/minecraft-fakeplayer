@@ -1,0 +1,4 @@
+PASS resident edited in open GUI restored after normal shutdown
+PASS open GUI inventory edits survive shutdown exactly once
+PASS GUI viewer does not become resident accidentally
+PASS phase gui-shutdown-restored

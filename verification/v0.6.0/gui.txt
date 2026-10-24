@@ -1,0 +1,47 @@
+PASS AUTO selects built-in control GUI
+PASS owner opens live GUI
+PASS GUI has exactly 54 top slots
+PASS armor slots map head-to-feet
+PASS offhand storage and hotbar map to real player inventory
+PASS main-hand preview lore never changes real item metadata
+PASS native right-click splits real stack
+PASS native left-click places stack into real storage
+PASS delegated administrator opens second live view
+PASS two viewers cannot take same stack from stale snapshots
+PASS native shift-click moves real stack to viewer once
+PASS number key swaps hotbar items without copying
+PASS incoming shift-click skips offhand and decorations
+PASS native drag distributes real items and skips control slot
+PASS double-click collects genuine matching items but excludes identical decorative glass
+PASS armor can be removed into cursor
+PASS armor slot rejects inappropriate item
+PASS all native extraction paths protect glass buttons and main-hand mirror
+PASS selection glass changes held slot and cancels item transfer
+PASS main-hand preview refreshes after selection
+PASS cancelled control click sends authoritative content and cursor after event completion
+PASS changing pages retains cursor items
+PASS action headers cannot replace cursor with decorations
+PASS action page never absorbs genuine items with identical button metadata during shift merge
+PASS 20 tick GUI period maps to native 19 tick cooldown
+PASS plus updates running interval immediately
+PASS right-click adjusts interval by five ticks
+PASS one tick interval clamps safely and keeps interval indicator
+PASS stopping one action leaves independent action running
+PASS sneak and sprint buttons modify real player state
+PASS feature toggles update replenish and autofish state
+PASS resident toggle updates saved resident state
+PASS autofishing rod keeps right-use action single-shot
+PASS right-use stop remains effective while autofishing is enabled
+PASS stop all preserves residency and items
+PASS single jump completes without continuous repetition
+PASS GUI displays actual external long interval without integer overflow
+PASS editing external long interval safely enters supported GUI range
+PASS invsee alone does not grant action or feature permissions
+PASS hotbar selection respects hold permission
+PASS drag across control glass is cancelled
+PASS native slot guard blocks edits immediately after permission revocation
+PASS revoked viewer is closed automatically
+PASS closing stale view never overwrites later inventory changes
+PASS target quit closes both viewers
+PASS native close preserves cursor items exactly once in viewer inventory or carried slot
+PASS phase gui

@@ -52,12 +52,11 @@ public abstract class AbstractInvseeManager implements InvseeManager {
                 SoundCategory.BLOCKS,
                 0.3F, 1.0F
         );
-        view.setTitle(ComponentUtils.toString(translatable(
-                "fakeplayer.manager.inventory.title",
-                text(whom.getName())
-        ), viewer.locale()));
+        view.setTitle(ComponentUtils.toString(title(whom), viewer.locale()));
         return true;
     }
+
+    protected net.kyori.adventure.text.Component title(Player whom) { return translatable("fakeplayer.manager.inventory.title",text(whom.getName())); }
 
     protected abstract @Nullable InventoryView openInventory(@NotNull Player viewer, @NotNull Player whom);
 

@@ -10,6 +10,8 @@ import org.jetbrains.annotations.NotNull;
  **/
 public interface InvseeManager extends Listener {
 
+    default void close() {}
+
     boolean invsee(@NotNull Player viewer, @NotNull Player whom);
 
 }

@@ -1,0 +1,20 @@
+PASS resident ownership filters reads
+PASS diagnostic ownership filters reads
+PASS resident list works without spawn permission and hides others
+PASS personal diagnose command executes without spawn permission
+PASS diagnose does not expose foreign details
+PASS foreign resident removal denied
+PASS invalid explicit target does not fall back to own fake
+PASS revoked administrator cannot reuse foreign selection
+PASS inventory API respects invsee permission
+PASS inventory API respects ownership
+PASS delegated administrator needs no OP
+PASS delegated administrator can control foreign selection
+PASS manage-others does not grant server diagnostics
+PASS server diagnostics permission works without OP
+PASS manage-others does not bypass creator quota
+PASS creator rename retains UUID ownership
+PASS same name with a different UUID cannot claim owner record
+PASS forget removes residency and leaves online fake alive
+PASS forget retains native playerdata
+PASS phase management

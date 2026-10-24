@@ -51,4 +51,15 @@ public class NMSBridgeImpl implements NMSBridge {
         return new ActionTickerImpl(Main.getInjector().getInstance(NMSBridge.class), player, action, setting);
     }
 
+    @Override public void resetPlayerControl(Player viewer) {
+        var menu=((org.bukkit.craftbukkit.entity.CraftPlayer)viewer).getHandle().containerMenu;
+        if(menu instanceof io.github.hello09x.fakeplayer.v26_3.inventory.PlayerControlMenu) {menu.resetQuickCraft();menu.broadcastFullState();}
+    }
+
+    @Override public org.bukkit.inventory.InventoryView openPlayerControl(Player viewer, Player target,
+            org.bukkit.inventory.Inventory decoration, java.util.function.IntUnaryOperator mapping,
+            java.util.function.BooleanSupplier valid) {
+        return io.github.hello09x.fakeplayer.v26_3.inventory.PlayerControlMenu.open(viewer,target,decoration,mapping,valid);
+    }
+
 }

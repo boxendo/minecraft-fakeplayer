@@ -1,0 +1,3 @@
+PASS packaged classes match current compiler output: 164
+PASS isolated server JAR matches delivered artifact SHA-256
+PASS no Minecraft, Bukkit or verification-helper classes embedded

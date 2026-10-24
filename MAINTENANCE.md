@@ -1,12 +1,12 @@
 # Paper 26.3 维护说明
 
-当前维护版本：`0.5.2-paper26.3`，维护代码的发布目标为 fork 的 `master`。
-本次候选版开发分支为 `fix/paper26.3-quit-hooks`，基于已发布的 `0df65c9`。
+当前维护版本：`0.6.0-paper26.3`，维护代码的发布目标为 fork 的 `master`。
+本次候选版开发分支为 `feat/paper26.3-control-gui`，基于已发布的 `f62d532`。
 
 ## 安装和配置
 
 1. 正常停止服务器，备份原插件 JAR、`plugins/fakeplayer/` 和世界目录。26.3 的玩家数据通常在世界根目录的 `players/data/`，以新诊断命令读取的原生目录为准。
-2. 用 `target/fakeplayer-0.5.2-paper26.3.jar` 替换旧插件，保留 CommandAPI。
+2. 用 `target/fakeplayer-0.6.0-paper26.3.jar` 替换旧插件，保留 CommandAPI。
 3. 编辑 `plugins/fakeplayer/config.yml`，不要编辑会被覆盖的 `config.tmpl.yml`。
 4. 启动服务器，先用一个已有假人验收背包和经验，再验证关服重启驻留。
 
@@ -35,6 +35,44 @@ keep-inventory-on-death: true
 `/fp kill` 表示让假人离线，同时取消它的驻留；不会删除原生玩家存档。
 `/fp resident true` 才表示服务器重启后自动恢复；只重新生成不等于自动重新执行上次动作。
 此前已经被旧版本覆盖掉的物品或经验不能凭空恢复，需要使用服务器原有备份。
+
+## 0.6.0 分区背包与动作界面
+
+安装新版本后，使用 `/fp invsee <名称>` 或右键假人打开；需要 `fakeplayer.command.invsee` 和该假人的管理权限。默认 `invsee-implement: AUTO` 会使用新界面，不依赖 OpenInv，也不需要资源包。
+
+背包页使用六行九列：
+
+| 行 | 内容 |
+| --- | --- |
+| 第 1 行 | 头盔、胸甲、护腿、靴子、青色说明玻璃、副手、只读主手预览、状态说明、动作页入口 |
+| 第 2–4 行 | 27 格背包 |
+| 第 5 行 | 9 格快捷栏真实物品 |
+| 第 6 行 | 9 个快捷栏选择按钮，绿色为当前手持格，灰色为未选择 |
+
+装备、背包、快捷栏和副手实时连接真实物品；支持原生左/右键、Shift 转移、数字键交换、拖动和双击收集。装备空格是实际空槽，头/胸/腿/脚的顺序可查看青色说明玻璃。主手预览的说明只加在副本上，不修改真实物品元数据。主手预览与玻璃不能被取走或复制；关闭界面不会将一份旧背包覆盖回假人。切换页面保留鼠标持有物品，关闭后由原版机制处理光标。
+
+按钮和物品名称、详细说明通过悬停查看。点击紫色玻璃进入动作页。攻击、挖掘、右键、跳跃各自占一行：红色停止、蓝色单次、绿色连续、橙色间隔，灰色为未选择。每个动作的间隔由同行 `− / +` 调节：左键 1 tick、右键 5 tick、Shift 点击 20 tick，范围 1–1200 tick。命令设置的更长周期会如实显示；对其使用调节按钮后会采用界面的 1–1200 tick 范围。此处显示的是执行周期：20 TPS 时 20 tick 约为一秒；实际速度随服务器 TPS 变化。单次状态在动作完成后恢复停止。使用鱼竿且开启自动钓鱼时，右键保持与命令相同的单次行为。
+
+底行提供潜行、疾跑、补货、自动钓鱼、驻留及停止全部动作。全停停止当前动作，不删除假人、不取消驻留，也不关闭补货或自动钓鱼等功能开关。界面会同步外部命令造成的手持格和动作状态变化。
+
+权限与对应操作一致：
+
+- 快捷栏选择要求 `fakeplayer.command.hold`。
+- 四种动作和该动作的停止/间隔调整分别要求 `fakeplayer.command.attack`、`mine`、`use`、`jump`。
+- 潜行、疾跑和全停分别要求 `fakeplayer.command.sneak`、`sprint`、`stop`。
+- 补货、自动钓鱼要求 `fakeplayer.command.set`、`fakeplayer.command.config`，并分别要求 `fakeplayer.config.replenish`、`fakeplayer.config.autofish`。
+- 驻留要求 `fakeplayer.command.resident`。其他人的假人仍要求 `fakeplayer.admin.manage-others`。
+
+每次操作都会重新检查查看权限、归属、原假人对象、在线状态和所在世界；撤权后物品操作立即被阻止，界面随后自动关闭。假人退出会关闭所有相关界面。不能打开自己的假人身份背包作为控制页，以免与查看者自身背包形成重复映射。
+
+配置选择在插件启动时生效，切换实现后应正常重启：
+
+```yaml
+# AUTO / CONTROL：新界面；SIMPLE：原简易背包；OPENINV：显式使用已安装的 OpenInv。
+invsee-implement: AUTO
+```
+
+`AUTO` 不再自动切换至 OpenInv；需要旧 OpenInv 界面的服务器应显式设为 `OPENINV`。本轮没有测试第三方 OpenInv 的具体版本。构建哈希与服务端交易测试见 [0.6.0 验证记录](verification/RESULTS-0.6.0.md)。
 
 ## 0.5.2 退出命令修复
 
@@ -87,7 +125,7 @@ after-quit-commands:
 
 ```sh
 mvn package
-python3 tools/verify-package.py target/fakeplayer-0.5.2-paper26.3.jar
+python3 tools/verify-package.py target/fakeplayer-0.6.0-paper26.3.jar
 ```
 
 打包核对会逐个比对当前编译输出与发布 JAR 内的类。

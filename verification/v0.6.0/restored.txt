@@ -1,0 +1,13 @@
+PASS resident restored online
+PASS inventory survives
+PASS selected hotbar survives
+PASS main hand survives
+PASS offhand survives
+PASS armor survives
+PASS ender chest survives
+PASS XP survives: 123
+PASS resident position restored
+PASS resident action restored
+PASS offline creator restored
+PASS creator UUID owns restored fake player
+PASS phase restored

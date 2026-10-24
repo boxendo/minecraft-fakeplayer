@@ -33,16 +33,16 @@ public class FakeplayerModule extends AbstractModule {
 
     @Provides
     @Singleton
-    public @NotNull InvseeManager invseeManager(FakeplayerConfig config, FakeplayerManager fakeplayerManager, FakeplayerList fakeplayerList) {
+    public @NotNull InvseeManager invseeManager(FakeplayerConfig config, FakeplayerManager fakeplayerManager, FakeplayerList fakeplayerList, NMSBridge bridge, ActionManager actions) {
         return switch (config.getInvseeImplement()) {
             case SIMPLE -> new SimpleInvseeManagerImpl(fakeplayerManager, fakeplayerList);
-            case AUTO -> {
-                if (Bukkit.getPluginManager().isPluginEnabled("OpenInv") && ClassUtils.isClassExists("com.lishid.openinv.IOpenInv")) {
-                    log.info("Using OpenInv as invsee implement");
-                    yield new OpenInvInvseeManagerImpl(fakeplayerManager, fakeplayerList);
-                }
-                log.info("Using simple invsee implement");
-                yield new SimpleInvseeManagerImpl(fakeplayerManager, fakeplayerList);
+            case AUTO, CONTROL -> {
+                log.info("Using live control GUI as invsee implement");
+                yield new io.github.hello09x.fakeplayer.core.manager.invsee.ControlInvseeManager(fakeplayerManager,fakeplayerList,bridge,actions);
+            }
+            case OPENINV -> {
+                if (!Bukkit.getPluginManager().isPluginEnabled("OpenInv") || !ClassUtils.isClassExists("com.lishid.openinv.IOpenInv")) throw new IllegalStateException("invsee-implement OPENINV requires OpenInv");
+                yield new OpenInvInvseeManagerImpl(fakeplayerManager,fakeplayerList);
             }
         };
     }

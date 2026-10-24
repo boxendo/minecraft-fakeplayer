@@ -1,0 +1,38 @@
+PASS refill fixture opens intended chest: normal
+PASS duplicate refill does not replace window: normal
+PASS normal refill moves exactly one source stack
+PASS duplicate refill cannot also fill other hand: normal
+PASS refill fixture opens intended chest: hand-change
+PASS duplicate refill does not replace window: hand-change
+PASS replacement hand protected: hand-change
+PASS duplicate refill cannot also fill other hand: hand-change
+PASS refill fixture opens intended chest: slot-change
+PASS duplicate refill does not replace window: slot-change
+PASS cancelled/stale refill leaves items intact: slot-change
+PASS duplicate refill cannot also fill other hand: slot-change
+PASS refill fixture opens intended chest: window-change
+PASS duplicate refill does not replace window: window-change
+PASS cancelled/stale refill leaves items intact: window-change
+PASS replacement window remains open
+PASS duplicate refill cannot also fill other hand: window-change
+PASS refill fixture opens intended chest: disabled
+PASS duplicate refill does not replace window: disabled
+PASS cancelled/stale refill leaves items intact: disabled
+PASS duplicate refill cannot also fill other hand: disabled
+PASS refill fixture opens intended chest: cancel-event
+PASS duplicate refill does not replace window: cancel-event
+PASS cancelled/stale refill leaves items intact: cancel-event
+PASS duplicate refill cannot also fill other hand: cancel-event
+PASS refill fixture opens intended chest: hand-event
+PASS duplicate refill does not replace window: hand-event
+PASS replacement hand protected: hand-event
+PASS duplicate refill cannot also fill other hand: hand-event
+PASS refill fixture opens intended chest: source-event
+PASS duplicate refill does not replace window: source-event
+PASS event-modified source is not copied or deleted
+PASS duplicate refill cannot also fill other hand: source-event
+PASS refill fixture opens intended chest: quit
+PASS duplicate refill does not replace window: quit
+PASS cancelled/stale refill leaves items intact: quit
+PASS duplicate refill cannot also fill other hand: quit
+PASS phase integrity-refill

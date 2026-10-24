@@ -1,0 +1,3 @@
+PASS failure stage and event evidence survive process restart
+PASS historical diagnostics do not claim a new live operation
+PASS phase journal-restored

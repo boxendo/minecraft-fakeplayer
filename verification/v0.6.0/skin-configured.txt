@@ -1,0 +1,3 @@
+PASS online skin lookup does not block spawn completion
+PASS default regeneration applies after connection setup
+PASS phase skin-configured

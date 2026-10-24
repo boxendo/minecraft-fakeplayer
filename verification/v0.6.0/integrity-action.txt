@@ -1,0 +1,8 @@
+PASS repeated action failure stops after three attempts despite cooldown ticks
+PASS failed action isolated; other actions continue
+PASS action failure reason visible in diagnostics
+PASS stopped failure omitted from resident action snapshots
+PASS replacing action cleans up previous ticker once
+PASS manual action command can start fresh ticker after failure
+PASS stop immediately clears all action registrations
+PASS phase integrity-action

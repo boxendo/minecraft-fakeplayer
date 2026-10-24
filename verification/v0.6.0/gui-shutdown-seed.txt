@@ -1,0 +1,4 @@
+PASS shutdown fixture opens GUI
+PASS shutdown fixture edits resident inventory through open GUI
+PASS GUI left open for normal shutdown regression
+PASS phase gui-shutdown-seed

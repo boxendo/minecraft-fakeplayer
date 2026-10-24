@@ -1,0 +1,3 @@
+PASS pending spawn can be removed
+PASS cancelled spawn never joins
+PASS phase cancel

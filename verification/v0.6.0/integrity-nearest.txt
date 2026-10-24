@@ -1,0 +1,5 @@
+PASS nearest selected even when farther entity appears first
+PASS nearest independent of candidate order
+PASS nearest excludes self and removed entities
+PASS nearest empty candidates safe
+PASS phase integrity-nearest

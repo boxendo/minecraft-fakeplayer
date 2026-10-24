@@ -1,0 +1,3 @@
+PASS replacing cancelled login keeps new registration intact
+PASS late old login cannot overwrite current operation diagnostics
+PASS phase race

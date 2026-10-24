@@ -758,7 +758,7 @@ public final class VerificationPlugin extends JavaPlugin implements Listener {
         String phase = args.length == 0 ? "state" : args[0];
         try {
             CompletableFuture<Void> future = switch (phase) {
-                case "quit-hooks" -> quitHooks(); case "integrity-resident-toggle" -> residentToggleIntegrity(); case "integrity-case" -> caseIntegrity(); case "integrity-nearest" -> nearestIntegrity(); case "integrity-refill" -> refillIntegrity(); case "integrity-action" -> faultIntegrity();
+                case "gui-shutdown-seed" -> new ControlGuiVerification(this,this::check).shutdownSeed(); case "gui-shutdown-restored" -> new ControlGuiVerification(this,this::check).shutdownRestored(); case "gui" -> withConfig(Map.of("detect-ip",false),()->new ControlGuiVerification(this,this::check).run()); case "quit-hooks" -> quitHooks(); case "integrity-resident-toggle" -> residentToggleIntegrity(); case "integrity-case" -> caseIntegrity(); case "integrity-nearest" -> nearestIntegrity(); case "integrity-refill" -> refillIntegrity(); case "integrity-action" -> faultIntegrity();
                 case "state" -> state(); case "pending" -> pending(); case "resident" -> resident();
                 case "restored" -> restored(); case "death" -> death(); case "actions" -> actions();
                 case "management" -> withConfig(Map.of("detect-ip",false),this::management); case "conflicts" -> conflicts(); case "budgets" -> budgets(); case "closing" -> closing(); case "race" -> race(); case "skin-configured" -> skinConfigured(); case "journal-restored" -> journalRestored(); case "offline-management" -> offlineManagement();

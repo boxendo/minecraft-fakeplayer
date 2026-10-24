@@ -1,0 +1,20 @@
+PASS legacy case conflicts keep independent UUIDs
+PASS ambiguous legacy spelling rejected without merging saves
+PASS lowercase reconnect reuses UUID
+PASS inventory survives
+PASS selected hotbar survives
+PASS main hand survives
+PASS offhand survives
+PASS armor survives
+PASS ender chest survives
+PASS XP survives: 123
+PASS uppercase reconnect reuses UUID
+PASS inventory survives
+PASS selected hotbar survives
+PASS main hand survives
+PASS offhand survives
+PASS armor survives
+PASS ender chest survives
+PASS XP survives: 123
+PASS database rejects new case duplicate
+PASS phase integrity-case

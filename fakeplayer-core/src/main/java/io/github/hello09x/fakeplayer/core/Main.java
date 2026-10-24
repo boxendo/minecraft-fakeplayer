@@ -129,6 +129,7 @@ public final class Main extends JavaPlugin {
     @Override
     public void onDisable() {
         if (injector != null) {
+            Exceptions.suppress(this, () -> injector.getInstance(InvseeManager.class).close());
             Exceptions.suppress(this, () -> injector.getInstance(io.github.hello09x.fakeplayer.core.manager.SpawnCoordinator.class).close());
             Exceptions.suppress(this, () -> injector.getInstance(io.github.hello09x.fakeplayer.core.manager.QuitCommandManager.class).flushAll());
             Exceptions.suppress(this, () -> injector.getInstance(io.github.hello09x.fakeplayer.core.manager.diagnostic.DiagnosticManager.class).flush());

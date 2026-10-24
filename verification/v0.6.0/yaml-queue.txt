@@ -1,0 +1,7 @@
+PASS encoding/write sink runs on dedicated worker
+PASS submitted nested snapshot detached from later mutations
+PASS 100 pending revisions coalesce; close flushes latest after in-flight write
+PASS closed writer rejects new submissions
+PASS failed snapshot retried automatically; unchanged snapshot does not rewrite
+PASS failed old write cannot replace newer snapshot during shutdown
+PASS persistent shutdown save failure explicitly reported
