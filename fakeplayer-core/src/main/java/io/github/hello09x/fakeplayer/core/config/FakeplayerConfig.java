@@ -253,18 +253,18 @@ public class FakeplayerConfig extends PluginConfig {
         }
 
         if (!this.allowCommands.isEmpty()) {
-            log.warning("allow-commands is deprecated which will be removed at 0.4.0, you should use Permissions Plugin to assign permission groups to fake players.");
+            log.warning("[FP-8007] allow-commands is deprecated which will be removed at 0.4.0, you should use Permissions Plugin to assign permission groups to fake players.");
         }
 
         var preparingCommands = file.getStringList("preparing-commands");
         if (!preparingCommands.isEmpty()) {
-            log.warning("preparing-commands is deprecated, use post-spawn-commands instead.");
+            log.warning("[FP-8007] preparing-commands is deprecated, use post-spawn-commands instead.");
             this.postSpawnCommands.addAll(preparingCommands);
         }
 
         var destroyCommands = file.getStringList("destroy-commands");
         if (!destroyCommands.isEmpty()) {
-            log.warning("destroy-commands is deprecated, use post-quit-commands instead.");
+            log.warning("[FP-8007] destroy-commands is deprecated, use post-quit-commands instead.");
             this.postQuitCommands.addAll(destroyCommands);
         }
 
@@ -283,7 +283,7 @@ public class FakeplayerConfig extends PluginConfig {
         try {
             return Pattern.compile(file.getString("name-pattern", defaultNameChars));
         } catch (PatternSyntaxException e) {
-            log.warning("Invalid name-pattern: " + file.getString("name-chars"));
+            log.warning("[FP-8005] Invalid name-pattern: " + file.getString("name-chars"));
             return Pattern.compile(defaultNameChars);
         }
     }
@@ -291,7 +291,7 @@ public class FakeplayerConfig extends PluginConfig {
     private @NotNull String getNameTemplate(@NotNull FileConfiguration file) {
         var tmpl = file.getString("name-template", "");
         if (tmpl.startsWith("-") || tmpl.startsWith("@")) {
-            log.warning("Invalid name template: " + this.nameTemplate);
+            log.warning("[FP-8006] Invalid name template: " + this.nameTemplate);
             return "";
         }
         return tmpl;
@@ -299,7 +299,7 @@ public class FakeplayerConfig extends PluginConfig {
 
     private @NotNull PreventKicking getPreventKicking(@NotNull FileConfiguration file) {
         if (file.getBoolean("prevent-kicked-on-spawning", false)) {
-            log.warning("prevent-kicked-on-spawning is deprecated which will be removed at 0.4.0, use prevent-kick instead");
+            log.warning("[FP-8007] prevent-kicked-on-spawning is deprecated which will be removed at 0.4.0, use prevent-kick instead");
             return PreventKicking.ON_SPAWNING;
         }
 

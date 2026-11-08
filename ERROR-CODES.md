@@ -11,6 +11,7 @@
 
 | 段位 | 类别 | 典型问题 |
 | --- | --- | --- |
+| `0xxx` | **生命周期** | 加载、配置、数据库、翻译、命令注册、NMS、关服 |
 | `1xxx` | 权限 | 缺命令/参数权限 |
 | `2xxx` | 目标假人 | 找不到、没选中、太远、状态不符 |
 | `3xxx` | 名称 | 名字长度、字符、重名、被真人占用 |
@@ -21,6 +22,27 @@
 | `9xxx` | 内部/存储 | 生成异常、SQLite/used-uuids 读写失败 |
 
 > 错误码是稳定编号，升级插件不会改变含义。
+
+---
+
+## 0xxx 生命周期（启动 / 加载 / 关服）
+
+这些错误只出现在**控制台**。除 `0009` 外，任何一个阶段失败都会让插件停止启用
+（日志末尾会有 `[FP-0010] fakeplayer failed to enable, disabling plugin`）。
+
+| 码 | 阶段 | 典型报错 | 原因与处理 |
+| --- | --- | --- | --- |
+| `0001` | `onLoad` | 加载插件时异常 | 极少见；检查 jar 是否完整、Java 版本是否 ≥ 25 |
+| `0002` | 依赖注入 / `config.yml` | `Failed during config.yml` | config.yml 语法错误、字段类型不对；删除后让插件重新生成，再逐项恢复 |
+| `0003` | 数据库（SQLite/HikariCP） | `SQLITE_CANTOPEN_ISDIR`、`unable to open database file` | `plugins/fakeplayer/data.db` 被占用/是目录/无写权限；删除或修复该文件 |
+| `0004` | 语言文件 / 翻译 | `Failed during translations` | `message/message_*.properties` 缺失或编码错误；重新安装 jar 或检查自定义语言文件 |
+| `0005` | 命令注册（CommandAPI） | `Failed during command registration` | 没装 CommandAPI、版本低于 12.1.0，或与其他插件命令冲突 |
+| `0006` | 事件监听器注册 | `Failed during event listeners` | 通常是前置依赖插件缺失/版本不符 |
+| `0007` | NMS / 版本 | `Unsupported Minecraft version: x.y` | 服务端不是 Paper 26.3；换对应版本的插件 |
+| `0008` | 插件消息通道 | `Failed during plugin message channels` | 通道被其他插件占用（BungeeCord 通道） |
+| `0009` | PlaceholderAPI | `PlaceholderAPI expansion disabled` | **仅警告**，插件继续运行；检查 PlaceholderAPI 版本 |
+| `0010` | 启用兜底 | `fakeplayer failed to enable` | 上面某个阶段的收尾提示，按前一个 `000x` 处理 |
+| `0011` | 关服清理 | `Failed to shut down ...` | 关闭时资源释放失败；一般不影响数据，重启后若复现请反馈 |
 
 ---
 
@@ -111,6 +133,9 @@
 | `8002` | `...config.set.error.invalid-value` | 同上 | 取值不在该 feature 的候选内（多数是 `true`/`false`） |
 | `8003` | `fakeplayer.configuration.out-of-date` | 启动/重载 | config.yml 版本旧，删除后让插件重新生成，或按提示迁移 |
 | `8004` | `/fp spawn` 世界参数 | `/fp spawn <名字> <世界> ...` | 世界名不存在；提示里会列出当前可用世界（用 `world`、`overworld`，不要用 `minecraft:` 前缀） |
+| `8005` | 控制台日志 | 启动时 | `name-chars` 不是合法正则；改回默认或修正正则 |
+| `8006` | 控制台日志 | 启动时 | `name-template` 非法（例如引用了不存在的占位符） |
+| `8007` | 控制台日志 | 启动时 | 使用了已废弃配置项（`allow-commands`、`preparing-commands`、`destroy-commands`、`prevent-kicked-on-spawning`），按提示迁移 |
 
 ## 9xxx 内部与存储
 

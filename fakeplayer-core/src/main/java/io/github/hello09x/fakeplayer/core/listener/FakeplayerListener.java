@@ -174,8 +174,16 @@ public class FakeplayerListener implements Listener {
     @EventHandler
     public void onPluginDisable(@NotNull PluginDisableEvent event) {
         if (event.getPlugin() == Main.getInstance()) {
-            Exceptions.suppress(Main.getInstance(), manager::onDisable);
-            Exceptions.suppress(Main.getInstance(), usedIdRepository::onDisable);
+            try {
+                manager.onDisable();
+            } catch (Throwable e) {
+                log.warning("[FP-0011] Failed to shut down fake player manager: " + e);
+            }
+            try {
+                usedIdRepository.onDisable();
+            } catch (Throwable e) {
+                log.warning("[FP-0011] Failed to shut down used-uuids repository: " + e);
+            }
         }
     }
 

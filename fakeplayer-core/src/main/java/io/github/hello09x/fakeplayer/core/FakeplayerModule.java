@@ -59,7 +59,7 @@ public class FakeplayerModule extends AbstractModule {
                 .orElse(null);
 
         if (bridge == null) {
-            throw new ExceptionInInitializerError("Unsupported Minecraft version: " + Bukkit.getMinecraftVersion());
+            throw new ExceptionInInitializerError("[FP-0007] Unsupported Minecraft version: " + Bukkit.getMinecraftVersion());
         }
         return bridge;
     }
