@@ -40,8 +40,10 @@ public interface Permission {
     String resident = "fakeplayer.command.resident";
     String residentRestore = "fakeplayer.command.resident.restore";
     String residentForget = "fakeplayer.command.resident.forget";
-    String killall = "fakeplayer.admin.killall";
-    String reload = "fakeplayer.admin.reload";
+    String killall = "fakeplayer.command.killall";
+    String reload = "fakeplayer.command.reload";
+    String reloadTranslation = "fakeplayer.command.reload-translation";
+    String debug = "fakeplayer.command.debug";
     String diagnose = "fakeplayer.command.diagnose";
     String manageOthers = "fakeplayer.admin.manage-others";
     String diagnoseServer = "fakeplayer.admin.diagnostics";

@@ -104,11 +104,17 @@ permissions:
   fakeplayer.admin.bypass-limits:
     description: 'Bypass legacy creator/server spawn quotas, not performance budgets'
     default: op
-  fakeplayer.admin.killall:
+  fakeplayer.command.killall:
     description: 'Remove all online and queued fake players'
     default: op
-  fakeplayer.admin.reload:
-    description: 'Reload plugin configuration and translations'
+  fakeplayer.command.reload:
+    description: 'Reload plugin configuration'
+    default: op
+  fakeplayer.command.reload-translation:
+    description: 'Reload translation files'
+    default: op
+  fakeplayer.command.debug:
+    description: 'Developer debug commands'
     default: op
   fakeplayer.admin:
     description: 'Server administration capabilities'
@@ -117,8 +123,13 @@ permissions:
       - fakeplayer.admin.manage-others
       - fakeplayer.admin.diagnostics
       - fakeplayer.admin.bypass-limits
-      - fakeplayer.admin.killall
-      - fakeplayer.admin.reload
+      - fakeplayer.command.killall
+      - fakeplayer.command.reload
+      - fakeplayer.command.reload-translation
+      - fakeplayer.command.debug
+      - fakeplayer.command.diagnose
+      - fakeplayer.command.resident.restore
+      - fakeplayer.command.resident.forget
   fakeplayer.command.resident:
     description: 'Allow player to run /fp resident (keep fake players across server restarts)'
   fakeplayer.config.replenish:
@@ -149,9 +160,6 @@ permissions:
       - fakeplayer.command.config
       - fakeplayer.command.set
       - fakeplayer.command.resident
-      - fakeplayer.command.resident.restore
-      - fakeplayer.command.resident.forget
-      - fakeplayer.command.diagnose
 
   fakeplayer.tp:
     description: 'Includes all permissions about teleport'
@@ -187,9 +195,45 @@ permissions:
       - fakeplayer.config.replenish.chest
       - fakeplayer.config.autofish
 
+  fakeplayer.basic:
+    description: 'Ordinary player permissions: spawn and control your own fake players'
+    default: false
+    children:
+      - fakeplayer.command.spawn
+      - fakeplayer.command.spawn.name
+      - fakeplayer.command.spawn.location
+      - fakeplayer.command.kill
+      - fakeplayer.command.list
+      - fakeplayer.command.select
+      - fakeplayer.command.selection
+      - fakeplayer.command.distance
+      - fakeplayer.command.status
+      - fakeplayer.command.skin
+      - fakeplayer.command.invsee
+      - fakeplayer.command.hold
+      - fakeplayer.command.respawn
+      - fakeplayer.command.resident
+      - fakeplayer.tp
+      - fakeplayer.exp
+      - fakeplayer.action
+
+  fakeplayer.management:
+    description: 'Manage fake player settings, inventory drops and resident records'
+    default: false
+    children:
+      - fakeplayer.command.config
+      - fakeplayer.command.set
+      - fakeplayer.command.drop
+      - fakeplayer.command.dropstack
+      - fakeplayer.command.dropinv
+      - fakeplayer.command.resident.restore
+      - fakeplayer.command.resident.forget
+
   fakeplayer.*:
     description: 'Includes all permissions'
     children:
+      - fakeplayer.basic
+      - fakeplayer.management
       - fakeplayer.spawn
       - fakeplayer.tp
       - fakeplayer.exp

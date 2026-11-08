@@ -2,7 +2,6 @@ package io.github.hello09x.fakeplayer.core.command;
 
 import com.google.inject.Inject;
 import com.google.inject.Singleton;
-import dev.jorel.commandapi.CommandPermission;
 import dev.jorel.commandapi.arguments.StringArgument;
 import dev.jorel.commandapi.arguments.ArgumentSuggestions;
 import dev.jorel.commandapi.arguments.Argument;
@@ -486,12 +485,12 @@ public class CommandRegistry {
                                 .executes(reloadCommand::reload),
                         command("reload-translation")
                                 .withShortDescription("fakeplayer.command.reload-translation.description")
-                                .withPermission(Permission.reload)
+                                .withPermission(Permission.reloadTranslation)
                                 .executes(reloadCommand::reloadTranslation),
 
                         // developer debug
                         command("debug")
-                                .withPermission(CommandPermission.OP)
+                                .withPermission(Permission.debug)
                                 .withRequirement(sender -> config.isDebug())
                                 .withSubcommands(
                                         command("send-plugin-message")
