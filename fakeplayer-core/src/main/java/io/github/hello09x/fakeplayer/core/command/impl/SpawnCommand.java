@@ -49,7 +49,9 @@ public class SpawnCommand extends AbstractCommand {
     @HandleCommandException
     public void spawn(@NotNull CommandSender sender, @NotNull CommandArguments args) {
         var name = (String) args.get("name");
-        if (name != null && name.isEmpty()) {
+        if (name != null && (name.isEmpty() || name.equals("-"))) {
+            // "-" 表示自动命名：这样只有 spawn.location 权限、没有 spawn.name 权限的玩家
+            // 也能跳过名称参数去指定世界和坐标（参数是按位置解析的）
             name = null;
         }
         var world = (World) args.get("world");
@@ -65,17 +67,20 @@ public class SpawnCommand extends AbstractCommand {
         }
 
         Location spawnpoint;
-        if (world == null || location == null) {
-            spawnpoint = sender instanceof Player p
-                    ? p.getLocation().clone()
-                    : Bukkit.getWorlds().get(0).getSpawnLocation().clone();
-        } else {
+        if (world != null && location != null) {
             spawnpoint = new Location(
                     world,
                     location.getX(),
                     location.getY(),
                     location.getZ()
             );
+        } else if (world != null) {
+            // 只给了世界没给坐标：用该世界的出生点，而不是静默忽略世界
+            spawnpoint = world.getSpawnLocation().clone();
+        } else {
+            spawnpoint = sender instanceof Player p
+                    ? p.getLocation().clone()
+                    : Bukkit.getWorlds().get(0).getSpawnLocation().clone();
         }
 
         var removedAt = Optional.ofNullable(config.getLifespan()).map(lifespan -> LocalDateTime.now().plus(lifespan)).orElse(null);
