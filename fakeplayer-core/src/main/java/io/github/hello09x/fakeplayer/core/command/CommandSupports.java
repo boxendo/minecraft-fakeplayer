@@ -5,6 +5,7 @@ import dev.jorel.commandapi.arguments.Argument;
 import dev.jorel.commandapi.arguments.ArgumentSuggestions;
 import dev.jorel.commandapi.arguments.CustomArgument;
 import dev.jorel.commandapi.arguments.StringArgument;
+import dev.jorel.commandapi.arguments.TextArgument;
 import io.github.hello09x.fakeplayer.api.spi.ActionSetting;
 import io.github.hello09x.fakeplayer.api.spi.ActionType;
 import io.github.hello09x.fakeplayer.core.Main;
@@ -12,6 +13,9 @@ import io.github.hello09x.fakeplayer.core.command.impl.ActionCommand;
 import io.github.hello09x.fakeplayer.core.config.FakeplayerConfig;
 import io.github.hello09x.fakeplayer.core.manager.FakeplayerManager;
 import io.github.hello09x.fakeplayer.core.repository.model.Feature;
+import net.kyori.adventure.text.Component;
+import org.bukkit.Bukkit;
+import org.bukkit.World;
 import org.bukkit.command.CommandSender;
 import org.bukkit.entity.Player;
 import org.jetbrains.annotations.NotNull;
@@ -124,6 +128,45 @@ public abstract class CommandSupports {
 
             return names.toArray(String[]::new);
         }));
+    }
+
+    /**
+     * 按 Bukkit 世界名解析 world 参数。
+     *
+     * <p>CommandAPI 12 的 {@code WorldArgument} 改成了按维度 key 解析
+     * （只认 {@code minecraft:overworld} 这类，报错信息为 {@code Unknown dimension}），
+     * 不再接受 {@code world}、{@code world_nether} 或 Multiverse 的自定义世界名。</p>
+     *
+     * <p>这里恢复旧版行为：优先用 {@link Bukkit#getWorld(String)} 按世界名解析，
+     * 找不到再兼容维度 key（{@code overworld} / {@code minecraft:overworld}）。</p>
+     */
+    public static @NotNull Argument<World> bukkitWorld(@NotNull String nodeName) {
+        return new CustomArgument<World, String>(new TextArgument(nodeName), info -> {
+            var input = info.currentInput();
+            var world = resolveWorld(input);
+            if (world == null) {
+                var available = String.join(", ", Bukkit.getWorlds().stream().map(World::getName).toList());
+                throw CustomArgument.CustomArgumentException.fromAdventureComponent(
+                        Component.text("Unknown world '%s', available: %s".formatted(input, available))
+                );
+            }
+            return world;
+        }).replaceSuggestions(ArgumentSuggestions.strings(info ->
+                Bukkit.getWorlds().stream().map(World::getName).toArray(String[]::new)));
+    }
+
+    private static @Nullable World resolveWorld(@NotNull String input) {
+        var world = Bukkit.getWorld(input);
+        if (world != null) {
+            return world;
+        }
+        for (var candidate : Bukkit.getWorlds()) {
+            var key = candidate.getKey();
+            if (key.getKey().equals(input) || key.toString().equals(input)) {
+                return candidate;
+            }
+        }
+        return null;
     }
 
     public static @NotNull Argument<Feature> configKey(@NotNull String nodeName) {

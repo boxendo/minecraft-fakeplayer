@@ -132,9 +132,9 @@ public class CommandRegistry {
                                 .withPermission(Permission.spawn)
                                 .withShortDescription("fakeplayer.command.spawn.description")
                                 .withOptionalArguments(
-                                        text("name").withPermission(Permission.spawnName),
-                                        world("world").withPermission(Permission.spawnLocation),
-                                        location("location").withPermission(Permission.spawnLocation))
+                                        text("name"),
+                                        bukkitWorld("world"),
+                                        location("location"))
                                 .executes(spawnCommand::spawn),
                         command("kill")
                                 .withPermission(Permission.kill)

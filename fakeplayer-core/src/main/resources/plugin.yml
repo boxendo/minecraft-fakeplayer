@@ -132,6 +132,8 @@ permissions:
     description: 'Includes all basic permissions'
     children:
       - fakeplayer.command.spawn
+      - fakeplayer.command.spawn.name
+      - fakeplayer.command.spawn.location
       - fakeplayer.command.kill
       - fakeplayer.command.list
       - fakeplayer.command.distance

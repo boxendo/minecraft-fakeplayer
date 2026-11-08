@@ -6,6 +6,7 @@ import dev.jorel.commandapi.executors.CommandArguments;
 import io.github.hello09x.devtools.command.exception.CommandException;
 import io.github.hello09x.devtools.command.exception.HandleCommandException;
 import io.github.hello09x.fakeplayer.core.Main;
+import io.github.hello09x.fakeplayer.core.command.Permission;
 import io.github.hello09x.fakeplayer.core.entity.FakeplayerTicker;
 import io.github.hello09x.fakeplayer.core.util.Mth;
 import net.kyori.adventure.text.Component;
@@ -53,6 +54,15 @@ public class SpawnCommand extends AbstractCommand {
         }
         var world = (World) args.get("world");
         var location = (Location) args.get("location");
+
+        // 参数级权限改成运行时检查：
+        // 若用 Argument#withPermission 隐藏节点，玩家会看到「错误的命令参数」这种莫名其妙的报错
+        if (name != null && !sender.hasPermission(Permission.spawnName)) {
+            throw new CommandException(translatable("fakeplayer.command.spawn.error.no-permission-name"));
+        }
+        if ((world != null || location != null) && !sender.hasPermission(Permission.spawnLocation)) {
+            throw new CommandException(translatable("fakeplayer.command.spawn.error.no-permission-location"));
+        }
 
         Location spawnpoint;
         if (world == null || location == null) {
