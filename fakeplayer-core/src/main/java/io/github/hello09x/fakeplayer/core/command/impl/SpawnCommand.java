@@ -119,7 +119,7 @@ public class SpawnCommand extends AbstractCommand {
                        scheduler.runTask(Main.getInstance(), () -> sender.sendMessage(ce.component()));
                    } else {
                        scheduler.runTask(Main.getInstance(), () -> sender.sendMessage(translatable("fakeplayer.command.spawn.error.unknown", RED)));
-                       log.severe(Throwables.getStackTraceAsString(e));
+                       log.severe("[FP-9001] " + Throwables.getStackTraceAsString(e));
                    }
                    return null;
                });

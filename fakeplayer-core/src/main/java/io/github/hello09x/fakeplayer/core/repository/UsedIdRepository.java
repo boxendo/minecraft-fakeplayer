@@ -64,11 +64,11 @@ public class UsedIdRepository {
                     }
                     this.UUIDS.add(UUID.fromString(line));
                 } catch (Throwable ignored) {
-                    log.warning("used-uuids.txt contains illegal UUID: " + line);
+                    log.warning("[FP-9003] used-uuids.txt contains illegal UUID: " + line);
                 }
             }
         } catch (IOException e) {
-            log.warning("Failed to read used-uuids.txt\n" + Throwables.getStackTraceAsString(e));
+            log.warning("[FP-9004] Failed to read used-uuids.txt\n" + Throwables.getStackTraceAsString(e));
         }
     }
 
@@ -85,7 +85,7 @@ public class UsedIdRepository {
         try (var out = new FileWriter(file)) {
             IOUtils.writeLines(UUIDS, null, out);
         } catch (IOException e) {
-            log.warning("Failed to save used-uuids.txt\n" + Throwables.getStackTraceAsString(e));
+            log.warning("[FP-9005] Failed to save used-uuids.txt\n" + Throwables.getStackTraceAsString(e));
         }
     }
 

@@ -215,7 +215,7 @@ public class ResidentManager {
                         } else {
                             mark(id,"FAILED",Objects.toString(cause.getMessage(),cause.getClass().getSimpleName()));
                             row.put("last-error",reasons.get(id));
-                            log.warning("Failed to restore "+name+"; record retained: "+reasons.get(id));
+                            log.warning("[FP-7003] Failed to restore "+name+"; record retained: "+reasons.get(id));
                         }
                     }
                     return null;
@@ -235,7 +235,7 @@ public class ResidentManager {
             if (fake!=null) { playerList.remove(fake); restoring.remove(id); }
             attempts.merge(id,1,Integer::sum); mark(id,"FAILED",Objects.toString(error.getMessage(),error.getClass().getSimpleName()));
             row.put("last-error",reasons.get(id));
-            log.warning("Invalid resident '"+row.get("name")+"'; record retained: "+error);
+            log.warning("[FP-7004] Invalid resident '"+row.get("name")+"'; record retained: "+error);
         }
     }
 
@@ -255,7 +255,7 @@ public class ResidentManager {
             saved.put(fake.getUUID(),row);
         } catch (Exception error) {
             diagnostics.event(fake.getUUID(),"SAVE","保存失败: "+error,org.bukkit.event.player.PlayerQuitEvent.getHandlerList());
-            log.warning("Failed to save "+fake.getName()+": "+error);
+            log.warning("[FP-7005] Failed to save "+fake.getName()+": "+error);
         }
     }
 

@@ -13,6 +13,8 @@ import io.github.hello09x.fakeplayer.core.command.impl.ActionCommand;
 import io.github.hello09x.fakeplayer.core.config.FakeplayerConfig;
 import io.github.hello09x.fakeplayer.core.manager.FakeplayerManager;
 import io.github.hello09x.fakeplayer.core.repository.model.Feature;
+import io.github.hello09x.devtools.core.translation.TranslatorUtils;
+import io.github.hello09x.devtools.core.utils.ComponentUtils;
 import net.kyori.adventure.text.Component;
 import org.bukkit.Bukkit;
 import org.bukkit.World;
@@ -131,6 +133,20 @@ public abstract class CommandSupports {
     }
 
     /**
+     * 构造带错误码的参数解析异常。
+     *
+     * <p>CommandAPI 的 {@code CustomArgumentException} 不会经过服务端翻译，
+     * 直接传 {@code translatable(...)} 会把原始 key 发给玩家（例如
+     * {@code fakeplayer.command.config.set.error.invalid-key}）。
+     * 这里先在服务端按发送者语言解析成字符串，再交给 CommandAPI。</p>
+     */
+    private static CustomArgument.CustomArgumentException configError(@NotNull CommandSender sender, @NotNull String key) {
+        return CustomArgument.CustomArgumentException.fromAdventureComponent(
+                Component.text(ComponentUtils.toString(translatable(key), TranslatorUtils.getLocale(sender)))
+        );
+    }
+
+    /**
      * 按 Bukkit 世界名解析 world 参数。
      *
      * <p>CommandAPI 12 的 {@code WorldArgument} 改成了按维度 key 解析
@@ -147,7 +163,7 @@ public abstract class CommandSupports {
             if (world == null) {
                 var available = String.join(", ", Bukkit.getWorlds().stream().map(World::getName).toList());
                 throw CustomArgument.CustomArgumentException.fromAdventureComponent(
-                        Component.text("Unknown world '%s', available: %s".formatted(input, available))
+                        Component.text("[FP-8004] Unknown world '%s', available: %s".formatted(input, available))
                 );
             }
             return world;
@@ -180,15 +196,15 @@ public abstract class CommandSupports {
             try {
                 key = Feature.valueOf(arg);
             } catch (Exception e) {
-                throw CustomArgument.CustomArgumentException.fromAdventureComponent(translatable("fakeplayer.command.config.set.error.invalid-key"));
+                throw configError(info.sender(), "fakeplayer.command.config.set.error.invalid-key");
             }
 
             if (!predicate.test(key)) {
-                throw CustomArgument.CustomArgumentException.fromAdventureComponent(translatable("fakeplayer.command.config.set.error.invalid-key"));
+                throw configError(info.sender(), "fakeplayer.command.config.set.error.invalid-key");
             }
 
             if (!key.testPermissions(info.sender())) {
-                throw CustomArgument.CustomArgumentException.fromAdventureComponent(translatable("fakeplayer.command.config.set.error.no-permission"));
+                throw configError(info.sender(), "fakeplayer.command.config.set.error.no-permission");
             }
             return key;
         }).replaceSuggestions(ArgumentSuggestions.strings(Arrays.stream(Feature.values()).filter(predicate).map(Enum::name).toArray(String[]::new)));
@@ -199,11 +215,11 @@ public abstract class CommandSupports {
         return new CustomArgument<String, String>(new StringArgument(nodeName), info -> {
             var key = (Feature) info.previousArgs().get(configKeyNodeName);
             if (key == null) {
-                throw CustomArgument.CustomArgumentException.fromAdventureComponent(translatable("fakeplayer.command.config.set.error.invalid-key"));
+                throw configError(info.sender(), "fakeplayer.command.config.set.error.invalid-key");
             }
             var arg = info.currentInput();
             if (!key.getOptions().contains(arg)) {
-                throw CustomArgument.CustomArgumentException.fromAdventureComponent(translatable("fakeplayer.command.config.set.error.invalid-value"));
+                throw configError(info.sender(), "fakeplayer.command.config.set.error.invalid-value");
             }
 
             return arg;

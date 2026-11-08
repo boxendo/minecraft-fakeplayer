@@ -218,7 +218,7 @@ public class NameManager {
             if (Bukkit.getPlayerExact(name) != null) {
                 continue;
             }
-            log.warning("Failed to generate a regular name for fake player after 10 attempts, using a random name as fallback: " + name);
+            log.warning("[FP-3008] Failed to generate a regular name for fake player after 10 attempts, using a random name as fallback: " + name);
             return new SequenceName("random", 0, this.getUUIDFromName(name), name);
         }
 

@@ -54,6 +54,16 @@ public abstract class AbstractCommand {
      * @return 假人
      * @throws WrapperCommandSyntaxException 找不到唯一的假人时抛出次异常
      */
+    /**
+     * 假人不存在，或当前发送者无权操作该假人（错误码 FP-2013）
+     */
+    protected @NotNull WrapperCommandSyntaxException noAccess(@NotNull CommandSender sender) {
+        return CommandAPI.failWithString(ComponentUtils.toString(
+                translatable("fakeplayer.command.generic.error.no-access"),
+                TranslatorUtils.getLocale(sender)
+        ));
+    }
+
     protected @NotNull Player getFakeplayer(@NotNull CommandSender sender, @NotNull CommandArguments args, @Nullable Predicate<Player> predicate) throws WrapperCommandSyntaxException {
         var fake = (Player) args.get("name");
         if (fake == null && sender instanceof Player p && args.getRaw("name") == null) {
@@ -62,11 +72,11 @@ public abstract class AbstractCommand {
         if (fake != null) {
             if ((!io.github.hello09x.fakeplayer.core.util.FakeplayerAccess.managesOthers(sender)
                     && manager.get(sender, fake.getName()) == null) || (predicate != null && !predicate.test(fake))) {
-                throw CommandAPI.failWithString("没有匹配的假人，或你无权访问。");
+                throw this.noAccess(sender);
             }
             return fake;
         }
-        if (args.getRaw("name") != null) throw CommandAPI.failWithString("没有匹配的假人，或你无权访问。");
+        if (args.getRaw("name") != null) throw this.noAccess(sender);
         var locale = TranslatorUtils.getLocale(sender);
 
         var all = manager.getAll(sender, predicate);
@@ -102,9 +112,9 @@ public abstract class AbstractCommand {
         var players = (List<Player>) args.get("names");
 
         if (args.getRaw("names") != null && (players == null || players.isEmpty()))
-            throw CommandAPI.failWithString("没有匹配的假人，或你无权访问。");
+            throw this.noAccess(sender);
         if (players != null && players.stream().anyMatch(player -> !io.github.hello09x.fakeplayer.core.util.FakeplayerAccess.managesOthers(sender) && manager.get(sender, player.getName()) == null))
-            throw CommandAPI.failWithString("没有匹配的假人，或你无权访问。");
+            throw this.noAccess(sender);
         // 优先选中的假人
         if (players == null || players.isEmpty()) {
             var fake = manager.getSelection(sender);

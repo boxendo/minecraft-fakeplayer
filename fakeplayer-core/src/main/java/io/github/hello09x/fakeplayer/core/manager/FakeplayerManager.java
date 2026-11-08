@@ -324,7 +324,7 @@ public class FakeplayerManager {
             try {
                 target.saveData();
                 Main.getInjector().getInstance(io.github.hello09x.fakeplayer.core.manager.diagnostic.DiagnosticManager.class).saved(target.getUniqueId());
-            } catch (Exception error) { log.warning("Failed to save fake player " + target.getName() + ": " + error); }
+            } catch (Exception error) { log.warning("[FP-9002] Failed to save fake player " + target.getName() + ": " + error); }
         }
         var diagnostic = Main.getInjector().getInstance(io.github.hello09x.fakeplayer.core.manager.diagnostic.DiagnosticManager.class);
         diagnostic.offline(target.getUniqueId());
@@ -471,7 +471,7 @@ public class FakeplayerManager {
         var c = Objects.requireNonNull(this.getCreatorName(target));
         for (var cmd : Commands.formatCommands(commands, "%p", p, "%u", u, "%c", c)) {
             if (!target.performCommand(cmd)) {
-                log.warning(target.getName() + " failed to execute command: " + cmd);
+                log.warning("[FP-6004] " + target.getName() + " failed to execute command: " + cmd);
             } else {
                 log.info(target.getName() + " issued command: " + cmd);
             }
@@ -490,7 +490,7 @@ public class FakeplayerManager {
         var c = fp.getCreator().getName();
         for (var cmd : Commands.formatCommands(commands, "%p", p, "%u", u, "%c", c)) {
             if (!server.dispatchCommand(sender, cmd)) {
-                log.warning("Failed to execute command for %s: ".formatted(p) + cmd);
+                log.warning("[FP-6005] Failed to execute command for %s: ".formatted(p) + cmd);
             } else {
                 log.info("Dispatched command: " + cmd);
             }
@@ -516,7 +516,7 @@ public class FakeplayerManager {
         var c = Objects.requireNonNull(this.getCreatorName(player));
         for (var cmd : Commands.formatCommands(commands, "%p", p, "%u", u, "%c", c)) {
             if (!server.dispatchCommand(sender, cmd)) {
-                log.warning("Failed to execute command for %s: ".formatted(p) + cmd);
+                log.warning("[FP-6005] Failed to execute command for %s: ".formatted(p) + cmd);
             } else {
                 log.info("Dispatched command: " + cmd);
             }

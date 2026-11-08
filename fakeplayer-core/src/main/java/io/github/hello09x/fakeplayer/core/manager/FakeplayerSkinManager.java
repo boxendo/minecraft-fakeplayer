@@ -118,7 +118,7 @@ public class FakeplayerSkinManager {
                     try {
                         return profile.complete() ? ProfileCompleteResult.SUCCESS : ProfileCompleteResult.FAILED;
                     } catch (Exception e) {
-                        log.warning("Failed to update skin of fake player %s since could not fetch online profile from mojang\n%s".formatted(
+                        log.warning("[FP-6009] Failed to update skin of fake player %s since could not fetch online profile from mojang\n%s".formatted(
                                 Optional.ofNullable(profile.getName())
                                         .orElse(String.valueOf(profile.getId())),
                                 Throwables.getStackTraceAsString(e)
@@ -143,7 +143,7 @@ public class FakeplayerSkinManager {
                             }
                         }
                         case FAILED -> {
-                            log.warning("Failed to update online skin of fakeplayer %s, maybe not a real player".formatted(
+                            log.warning("[FP-6010] Failed to update online skin of fakeplayer %s, maybe not a real player".formatted(
                                     Optional.ofNullable(profile.getName())
                                             .orElse(String.valueOf(profile.getId())))
                             );

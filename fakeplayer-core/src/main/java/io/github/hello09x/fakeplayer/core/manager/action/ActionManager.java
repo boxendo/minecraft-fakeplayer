@@ -141,7 +141,7 @@ public class ActionManager {
                         stopSafely(ticker);
                         var message = type + " 连续失败 " + count + " 次，已停止；重新执行该动作命令可重试。";
                         diagnostics.note(id, "ACTION_STOPPED", message + " " + error);
-                        log.warning("Fakeplayer " + player.getName() + ": " + message);
+                        log.warning("[FP-6006] Fakeplayer " + player.getName() + ": " + message);
                     }
                 }
             }

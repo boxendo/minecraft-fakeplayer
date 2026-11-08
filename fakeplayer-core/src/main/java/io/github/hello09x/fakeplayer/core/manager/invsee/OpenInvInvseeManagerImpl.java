@@ -77,7 +77,7 @@ public class OpenInvInvseeManagerImpl extends AbstractInvseeManager {
             return (InventoryView) this.openInventory.invoke(this.openInv, viewer, inventory);
         } catch (InvocationTargetException e) {
             if (e.getTargetException() instanceof InstantiationException) {
-                log.warning("Failed to open %s's inventory for %s\n%s".formatted(
+                log.warning("[FP-6007] Failed to open %s's inventory for %s\n%s".formatted(
                         whom.getName(),
                         viewer.getName(),
                         Throwables.getStackTraceAsString(e.getTargetException())

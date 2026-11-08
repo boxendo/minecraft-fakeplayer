@@ -90,7 +90,7 @@ public final class Main extends JavaPlugin {
             try {
                 injector.getInstance(ResidentManager.class).restoreAll();
             } catch (Throwable e) {
-                getLogger().warning("Failed to restore resident fake players: " + e);
+                getLogger().warning("[FP-7006] Failed to restore resident fake players: " + e);
             }
         }, 20L);
 
@@ -121,7 +121,7 @@ public final class Main extends JavaPlugin {
                 }
 
             } catch (Throwable e) {
-                getLogger().warning("Error on checking for updates: " + e.getMessage());
+                getLogger().warning("[FP-9006] Error on checking for updates: " + e.getMessage());
             }
         });
     }
